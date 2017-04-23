@@ -15,7 +15,9 @@ import System.Environment (getArgs)
 import System.FilePath (replaceExtension)
 import qualified Codec.Picture.Types as M
 import qualified Data.Array.Repa     as R -- for Repa
-import Lib (Vec3, Rays, emptyRays, raysFromCam, _num, vec3ToImage)
+import Lib (Vec3, Rays, _num)
+import Object (filter1)
+import Data.Maybe
 
 type RGB8 = (Pixel8, Pixel8, Pixel8)
 
@@ -48,10 +50,16 @@ objects = []
 
 type ImageArray = Array D DIM2 RGB8
 
+l = 100000
+
 main :: IO ()
 main = do
-  img    <- R.computeUnboxedP repaImg
-  (savePngImage "image.png" . ImageRGB8 . toImage) img
+  let array = R.fromFunction (Z :. l) $ \(Z :. x) -> Just x :: Maybe Int
+  -- let filtered = (R.fromListUnboxed (Z :. l) . catMaybes $ R.toList array) :: Array U DIM1 Int
+  filtered <- R.selectP (\n -> isJust $ array ! (Z :. n)) id l 
+  print $ filtered ! (Z :. l - 1)
+  -- img    <- R.computeUnboxedP repaImg
+  -- (savePngImage "image.png" . ImageRGB8 . toImage) img
 
 repaImg :: ImageArray
 repaImg = R.fromFunction imgDimensions originalFnc
@@ -67,12 +75,12 @@ originalFnc (Z :. x :. y) =
 
 blankCanvas = R.fromFunction imgDimensions $ const 0 :: Vec3
 
-repaImg' = vec3ToImage $ iterate rayTrace blankCanvas !! numIters :: ImageArray
+-- repaImg' = vec3ToImage $ iterate rayTrace blankCanvas !! numIters :: ImageArray
 
-rayTrace :: Vec3 -> Vec3
-rayTrace canvas = canvas'
-  where (_, canvas') = until allTerminal bounce (raysFromCam, canvas)
-        allTerminal (nonTerminalRays, _)  = _num nonTerminalRays == 0
+-- rayTrace :: Vec3 -> Vec3
+-- rayTrace canvas = canvas
+--   where (_, canvas') = until allTerminal bounce (raysFromCam, canvas)
+--         allTerminal (nonTerminalRays, _)  = _num nonTerminalRays == 0
 
 bounce :: (Rays, Vec3) -> (Rays, Vec3)
 bounce = id -- TODO

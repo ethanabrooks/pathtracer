@@ -7,6 +7,7 @@ module Lib ( Rays (..)
            , inf
            , lessThan
            , filterWith
+           , emptyRays
            ) where
 
 import Control.Lens
@@ -80,7 +81,7 @@ type Vec1 = Array D DIM1 Float
 data Rays = Rays { _origins   :: Vec3
                  , _vectors   :: Vec3
                  , _distances :: Array U DIM1 Float
-                 , _pixels    :: Array U DIM1 Float
+                 , _pixels    :: Array U DIM1 Int
                  , _num       :: Int }
 
 makeLenses ''Rays
@@ -153,7 +154,7 @@ rowAt i = R.extract (Z :. i :. 0) (Z :. 1 :. 3)
 emptyRays = Rays { _origins   = empty3
                  , _vectors   = empty3
                  , _pixels    = R.computeS empty1
-                 , _distances = R.computeS empty1
+                 , _distances = R.fromListUnboxed  (Z :. 0) []
                  , _num       = 0 }
   where empty1 = R.fromFunction (Z :. 0) $ const 0
         empty3 = R.fromFunction (Z :. 0 :. 0) $ const 0
