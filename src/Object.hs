@@ -1,8 +1,6 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Object where
 
@@ -18,6 +16,7 @@ import Lib (Vec3, Vec1, Rays (..), _num, _origins, _distances, inf,
             lessThan, filterWith, emptyRays, reshape)
 import Debug.Trace
 import Data.Maybe
+import Control.Monad
 import Prelude hiding ((++))
 
 data Form = Disk
@@ -153,6 +152,40 @@ distanceFrom rays object = do distances <- distanceFrom' rays $ _form object
                               let flatten = R.reshape (Z :. (S.size $ R.extent distances)) distances
                               return flatten 
 
+getNormals :: R.Source r Int => Array r DIM1 Int -> Array D DIM2 Double
+getNormals objectIdxs = unnestArray 3 (R.map (getNormal . (objects !!)) objectIdxs)
+
+
+getDistance ::
+  (R.Source r (Maybe Double), S.Shape t) =>
+  [Array r t (Maybe Double)] -> (t -> Maybe Int) -> t -> Maybe Double
+getDistance distancesToObjects src i = maybe Nothing (\j -> distancesToObjects !! j ! i) $ src i
+
+
+traverse' ::
+  (S.Shape sh', R.Source r a) =>
+  Array r sh' a -> (sh' -> a -> b) -> Array D sh' b
+traverse' array f = R.traverse array id $ ap f
+
+indexArrayList ::
+  (R.Source r1 (Maybe a), R.Source r (Maybe Int), S.Shape sh) =>
+  [Array r1 sh (Maybe a)]
+  -> Array r sh (Maybe Int) -> Array D sh (Maybe a)
+indexArrayList arrayList idxs = traverse' idxs $ \i maybeIdx -> let lookup j  = arrayList !! j ! i
+                                                                in  maybe Nothing lookup maybeIdx
+
+indexList ::
+  (S.Shape sh, R.Source s (Maybe Int)) =>
+  [a] -> Array s sh (Maybe Int) -> Array D sh (Maybe a)
+indexList list idxs = traverse' idxs . const . maybe Nothing $ Just . (list !!)
+
+
+getClosestObjects :: Monad m => m Int -> m Object
+getClosestObjects = fmap (objects !!)
+
+checkLight :: Maybe Object -> Bool
+checkLight = maybe False _light
+                         
 filter' :: (U.Unbox a, Monad m, R.Source r a, R.Source s Bool, S.Shape sh1, S.Shape sh2) =>
     Array s sh1 Bool -> Array r sh2 a -> m (Array U DIM1 a)
 filterer `filter'` filtered = R.selectP cond constructor sizeFiltered
@@ -162,36 +195,10 @@ filterer `filter'` filtered = R.selectP cond constructor sizeFiltered
               width             = sizeFiltered `quot` (S.size $ R.extent filterer)
 
 
-getNormals :: R.Source r Int => Array r DIM1 Int -> Array D DIM2 Double
-getNormals objectIdxs = unnestArray 3 (R.map (getNormal . (objects !!)) objectIdxs)
-
-
-checkLight :: (t -> Maybe Int) -> t -> Bool
-checkLight src i = maybe False (_light . (objects !!)) $ src i
-
-getDistance
-  :: (R.Source r (Maybe Double), S.Shape t) =>
-  [Array r t (Maybe Double)] -> (t -> Maybe Int) -> t -> Maybe Double
-getDistance distancesToObjects src i = maybe Nothing (\j -> distancesToObjects !! j ! i) $ src i
-
-indexArrayList ::
-  (R.Source r1 (Maybe a), R.Source r (Maybe Int), S.Shape sh) =>
-  [Array r1 sh (Maybe a)]
-  -> Array r sh (Maybe Int) -> Array D sh (Maybe a)
-indexArrayList arrayList idxs = R.traverse idxs id $ \src i -> let maybeIdx = src i
-                                                                   lookup j  = arrayList !! j ! i
-                                                               in  maybe Nothing lookup maybeIdx
-
-indexList :: (R.Source r (Maybe Int), S.Shape sh) =>
-    [Maybe a] -> Array r sh (Maybe Int) -> Array D sh (Maybe a)
-indexList list idxs = R.traverse idxs id (maybe Nothing (list !!) .)
-
-
-getClosestObjects :: Maybe Int -> Maybe Object
-getClosestObjects = fmap (objects !!)
 
 bounce :: (Rays, Array D DIM1 (Array D DIM1 Double)) -> (Rays, Array D DIM1 (Array D DIM1 Double))
 bounce (rays, canvas) = fromJust $ do
+
         -- get values for new rays
         let Rays { _origins   = origins
                  , _vectors   = vectors
@@ -202,28 +209,27 @@ bounce (rays, canvas) = fromJust $ do
         -- get distances to closest objects
         let distancesToObjects = mapMaybe (distanceFrom rays) objects
               :: [Array D DIM1 (Maybe Double)]
-        let closestObjectIdxs  = minIndexArrays distancesToObjects
-              :: Array D DIM1 (Maybe Int)
-        let traverseObjects    = R.traverse closestObjectIdxs id -- :: f src i -> array
+        let closestObjectIdxs  = minIndexArrays distancesToObjects :: Array D DIM1 (Maybe Int)
         let closestDistances   = indexArrayList distancesToObjects closestObjectIdxs
-        let closestObjects     = traverseObjects (getClosestObjects .)
+        let closestObjects     = indexList objects closestObjectIdxs :: Array D DIM1 (Maybe Object)
 
         -- get filter criteria
-        let hitLight          = traverseObjects checkLight
-        let hitNothing        = R.map isNothing closestObjectIdxs
-        let terminal          = R.zipWith (||) hitLight hitNothing
-        let nonterminal       = R.map not terminal :: Array D DIM1 Bool
+        let hitLight           = R.map checkLight closestObjects
+        let hitNothing         = R.map isNothing closestObjects
+        let terminal           = R.zipWith (||) hitLight hitNothing
+        let nonterminal        = R.map not terminal :: Array D DIM1 Bool
+        let fn = filter' nonterminal :: (U.Unbox a, Monad m, R.Source r a, S.Shape sh2) => (forall a. U.Unbox a => Array r sh2 a) -> m (Array U DIM1 a)
         
         -- filter out terminal
-        distances'          <- nonterminal `filter'` R.map (fromMaybe inf) closestDistances
-        pixels'             <- nonterminal `filter'` pixels
-        origins'            <- nonterminal `filter'` origins
-        closestObjectIdxs'  <- nonterminal `filter'` R.map (fromMaybe 0) closestObjectIdxs
+        distances'            <- nonterminal `filter'` R.map (fromMaybe inf) closestDistances
+        pixels'               <- nonterminal `filter'` pixels
+        origins'              <- nonterminal `filter'` origins
+        closestObjectIdxs'    <- nonterminal `filter'` R.map (fromMaybe 0) closestObjectIdxs
 
         -- get new vectors
-        let normals       = getNormals closestObjectIdxs'
-        vectors'          <- normals `reflect` vectors
-        points            <- march rays distances'
+        let normals            = getNormals closestObjectIdxs'
+        vectors'              <- normals `reflect` vectors
+        points                <- march rays distances'
 
         let rays' = Rays { _origins   = reshape [-1, 3] origins'
                          , _distances = distances'
@@ -232,31 +238,24 @@ bounce (rays, canvas) = fromJust $ do
                          , _num       = S.size $ R.extent distances' }
 
         -- Every bounce, multiply color of objects struck by rays with the canvas
-        let canvas' = traverseObjects $ applyColor pixels canvas
+        let canvas' = R.zipWith (applyColor canvas) closestObjects pixels
 
         return (rays', canvas')
-  
+
 applyColor ::
-  (R.Source r (Array r1 DIM1 Double), R.Source r1 Double,
-   R.Source r2 head, S.Shape (Z :. head), S.Shape t) =>
-  Array r2 t head
-  -> Array r (Z :. head) (Array r1 DIM1 Double)
-  -> (t -> Maybe Int)
-  -> t
-  -> Array D DIM1 Double
-applyColor pixels canvas src i = let objectColor = getColor $ src i
-                                     pixel       = (Z :. pixels ! i)
-                                  in (canvas ! pixel) *^ objectColor
-
-getColor :: Maybe Int -> Array D DIM1 Double
-getColor = maybe black (\i -> _color $ objects !! i)
-  where black = R.fromFunction (Z :. 3) $ const 0
-
-
-minIndex' :: Maybe (Double, Int) -> Int -> [Maybe Double] -> Maybe Int
-minIndex' Nothing               idx []     = Nothing
-minIndex' (Just (minX, minIdx)) idx []     = Just minIdx 
-minIndex' minPair               idx (x:xs) = minIndex' minPair' (idx + 1) xs
+  (R.Source r1 Double, R.Source r (Array r1 (Z :. Int) Double),
+   S.Shape (Z :. head)) =>
+  Array r (Z :. head) (Array r1 (Z :. Int) Double)
+  -> Maybe Object -> head -> Array D (Z :. Int) Double
+applyColor canvas object pixelIdx = canvasColor *^ objectColor
+  where canvasColor = canvas ! (Z :. pixelIdx)
+        objectColor = maybe black _color object
+        black       = R.fromFunction (Z :. 3) $ const 0
+  
+minIndex :: Maybe (Double, Int) -> Int -> [Maybe Double] -> Maybe Int
+minIndex Nothing               idx []     = Nothing
+minIndex (Just (minX, minIdx)) idx []     = Just minIdx 
+minIndex minPair               idx (x:xs) = minIndex minPair' (idx + 1) xs
   where minPair' = case (x, minPair) of
                      (Nothing, _                  ) -> minPair
                      (Just x', Nothing            ) -> Just (x', idx)
@@ -269,13 +268,9 @@ minIndex' minPair               idx (x:xs) = minIndex' minPair' (idx + 1) xs
 minIndexArrays :: [Array D DIM1 (Maybe Double)] -> Array D DIM1 (Maybe Int)
 minIndexArrays [] = error "Cannot take minIndex of empty list"
 minIndexArrays arrays@(array:_) = R.fromFunction (R.extent array)
-  $ \i -> minIndex' Nothing 0 $ map (! i) arrays
+  $ \i -> minIndex Nothing 0 $ map (! i) arrays
 
 
-
--- getClosestObject = foldl (\(closest, distance), object -> if distanceFrom
-
--- getClosestObjects rays = R.fromFunction (Z :. _num rays) $ \ (Z :. row) -> foldOverObjects row
 
 origins :: Array D DIM2 Double
 origins = R.fromFunction (Z :. 10 :. 3) $ \(Z :. i :. j) -> fromIntegral $ i + j
