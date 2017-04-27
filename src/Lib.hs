@@ -8,14 +8,17 @@ module Lib ( Rays (..)
            , lessThan
            , filterWith
            , emptyRays
+           , reshape
            ) where
 
 import Control.Lens
 import qualified Data.Array.Repa     as R -- for Repa
 import Data.Array.Repa (Array, DIM1, DIM2, U, D, Z (..), (:.)(..), (!), (*^), All)
+import Data.Array.Repa hiding ((++), map, reshape)
 import Data.Array.Repa.Repr.Unboxed (Unbox)
 import Data.Array.Repa.Eval (Elt)
 import Codec.Picture
+import qualified Data.Array.Repa.Shape as S
 
 
 data FooBar
@@ -31,7 +34,7 @@ foo' = foo & x %~ map (+ 1)
 foo'' = foo & x .~ [0..9]
 foo''' = foo & x . ix 2 .~ 8
 
-d1 :: Array D (Z :. Int) Float
+d1 :: Array D (Z :. Int) Double
 d1 = R.fromFunction (Z :. 10) $ \(Z :. x) -> case x of
                                                   1 -> 1
                                                   3 -> 3
@@ -49,38 +52,38 @@ imgDimensions :: DIM2
 imgDimensions = (Z :. imgHeight :. imgWidth)
  
 
-d2 :: Array D (Z :. Int) Float
+d2 :: Array D (Z :. Int) Double
 d2 = R.fromFunction (Z :. 10) $ \(Z :. x) -> fromIntegral x
  
 
-d3 :: Array D (Z :. Int) Float
+d3 :: Array D (Z :. Int) Double
 d3 = R.fromFunction (Z :. 5) $ \(Z :. x) -> fromIntegral x
 
 
-dInf :: Array D (Z :. Int) Float
+dInf :: Array D (Z :. Int) Double
 dInf = R.fromFunction (Z :. round inf) $ const 0.0
 
-u1 :: Array U (Z :. Int) Float
+u1 :: Array U (Z :. Int) Double
 u1 = R.computeUnboxedS d1
 
-u2 :: Array U (Z :. Int) Float
+u2 :: Array U (Z :. Int) Double
 u2 = R.computeUnboxedS d2
 
-u3 :: Array U DIM2 Float
+u3 :: Array U DIM2 Double
 u3 = R.fromListUnboxed (Z :. 2 :. 2) [1, 2, 3, 4]
 
-inf = 1.0 / 0.0 :: Float
+inf = 1.0 / 0.0 :: Double
 
 rangeD1 :: Array D (Z :. Int) Int
 rangeD1 = R.traverse d1 id (\_ (Z :. i) -> i)
 
 type ImageArray = Array D DIM2 RGB8
 type RGB8 = (Pixel8, Pixel8, Pixel8)
-type Vec3 = Array D DIM2 Float
-type Vec1 = Array D DIM1 Float
+type Vec3 = Array D DIM2 Double
+type Vec1 = Array D DIM1 Double
 data Rays = Rays { _origins   :: Vec3
                  , _vectors   :: Vec3
-                 , _distances :: Array U DIM1 Float
+                 , _distances :: Array U DIM1 Double
                  , _pixels    :: Array U DIM1 Int
                  , _num       :: Int }
 
@@ -102,7 +105,7 @@ newRGB :: Int -> Int -> Int -> RGB8
 newRGB x y z = (pixel x, pixel y, pixel z)
   where pixel = fromIntegral . min 0xff
 
-lessThan :: R.Shape sh => Array D sh Float -> Array D sh Float -> Array D sh Bool
+lessThan :: R.Shape sh => Array D sh Double -> Array D sh Double -> Array D sh Bool
 lessThan a1 a2 = R.fromFunction (R.extent a1) (\coord -> (a1 ! coord) Prelude.< (a2 ! coord)) 
 
 filterWith :: (Unbox b, R.Source r a, R.Source s b, Monad m) =>
@@ -121,17 +124,17 @@ filterWith filterer cond filtered = R.selectP (cond . from filterer) (from filte
 
 -- -- reshape after filtering
 -- filterBy3 :: (Elt a, Unbox a) =>
---   Vec1 -> Array D DIM2 a -> (Float -> Bool) -> Maybe (Array D DIM2 a)
+--   Vec1 -> Array D DIM2 a -> (Double -> Bool) -> Maybe (Array D DIM2 a)
 -- filterBy3 filterer filtered cond = do newArray <- filtered `filterBy` (filterer, cond)
 --                                       let (Z :. length) = R.extent newArray
 --                                       Just $ R.reshape (Z :. length `quot` 3 :. 3) newArray
 
 -- expand dim0 before filtering
--- filterByDistance1 :: (Elt a, Unbox a) => (Float -> Bool) -> Vec1 -> Maybe (Array D DIM1 a)
+-- filterByDistance1 :: (Elt a, Unbox a) => (Double -> Bool) -> Vec1 -> Maybe (Array D DIM1 a)
 -- filterBy1 :: (R.Source r b, R.Source r a, Elt a, Unbox a, Monad m) =>
 --   Array D DIM1 a -> Array D DIM1 b -> (b -> Bool) -> Maybe (Array D DIM1 a)
 -- filterBy1 :: (Elt a, Unbox a) =>
---     Vec1 -> Array D DIM1 a -> (Float -> Bool) -> Maybe (Array D DIM1 a)
+--     Vec1 -> Array D DIM1 a -> (Double -> Bool) -> Maybe (Array D DIM1 a)
 -- filterBy1 filterer filtered cond = expanded `filterBy` (filterer, cond) >>= Just . R.delay
 --         where expanded = R.reshape (Z :. length :. 1) filtered
 --               (Z :. length) = R.extent filtered
@@ -146,7 +149,7 @@ rowAt i = R.extract (Z :. i :. 0) (Z :. 1 :. 3)
 
 
 
--- applyColorTo :: Rays -> Vec3 -> Array D DIM2 Float
+-- applyColorTo :: Rays -> Vec3 -> Array D DIM2 Double
 -- applyColorTo rays canvas = R.fromFunction rayShape3 $ \(Z :. i :. j) ->
 --   let [rayColor, canvasColor] = map (rowAt i) [_colors rays, canvas]
 --   in (rayColor *^ canvasColor) ! (Z :. 0 :. j)
@@ -166,7 +169,15 @@ vec3ToImage array = R.reshape (Z :. imgHeight :. imgWidth)
                             in  newRGB r g b
 
 
--- f :: R.Shape a => a -> Int
--- f sh = case sh of
-         
-  
+inferMissing :: (Show a, Integral a) => [a] -> [a] -> [a]
+inferMissing list listWithNeg
+  | not valid = error ((show list) ++ " and " ++ (show listWithNeg) ++ " are not valid inputs.")
+  | valid     = result
+    where valid      = (product result == product list) && (all (> 0) result)
+          missingVal = product list `quot` product (filter (>= 0) listWithNeg)
+          result     = map (\x -> if x < 0 then missingVal else x) listWithNeg
+
+
+reshape :: (R.Source r1 e, S.Shape sh1, S.Shape sh2) => [Int] -> Array r1 sh1 e -> Array D sh2 e
+reshape shape array = R.reshape (S.shapeOfList shape') array
+  where shape' = inferMissing (S.listOfShape (R.extent array)) shape

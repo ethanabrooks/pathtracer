@@ -14,9 +14,11 @@ import qualified Data.Array.Repa.Repr.Unboxed as U
 import Data.Array.Repa (Array, DIM1, DIM2, DIM3, U, D, Z (..), (:.)(..),
                         (!), (++), (*^), (+^), (-^), (/^))
 import Data.Array.Repa.Slice (Any (..), All (..))
-import Lib (Vec3, Vec1, Rays (..), _num, _origins, _distances, inf, lessThan, filterWith, emptyRays)
+import Lib (Vec3, Vec1, Rays (..), _num, _origins, _distances, inf,
+            lessThan, filterWith, emptyRays, reshape)
 import Debug.Trace
 import Data.Maybe
+import Prelude hiding ((++))
 
 data Form = Disk
             { _center :: Vec1
@@ -29,18 +31,6 @@ data Object = Object { _color :: Vec1
                      , _light :: Bool
                      , _form  :: Form }
 
-mmMult  :: (Monad m, R.Source r Float)
-     => Array r DIM2 Float
-     -> Array r DIM2 Float
-     -> m (Array U DIM2 Float)
-mmMult a b = R.sumP (R.zipWith (*) aRepl bRepl)
-    where
-      t     = R.transpose b
-      aRepl = R.extend (Z :. All :.colsB :.All) a
-      bRepl = R.extend (Z :.rowsA :.All :.All) t
-      (Z :.colsA :.rowsA) = R.extent a
-      (Z :.colsB :.rowsB) = R.extent b
-
 infPlane = Object 
   { _color = R.fromFunction (Z :. 3) $ const 1
   , _light = False
@@ -51,24 +41,6 @@ infPlane = Object
 objects :: [Object]
 objects = [infPlane]
 
-distanceFrom' :: Monad m => Rays -> Form -> m (Array D DIM2 Float)
-distanceFrom' rays@Rays { _origins = origins, _vectors = vectors } form =
-  case form of
-    Disk { _center = center, _normal = normal }        ->
-      distanceFrom' rays $ InfinitePlane { _point  = center , _normal = normal }
-    InfinitePlane { _point = point, _normal = normal } -> 
-      do broadcasted         <- broadcast point origins
-         let transposeNormal = R.reshape (Z :. 3 :. 1) normal
-         a                   <- (broadcasted -^ origins) `mmMult` transposeNormal 
-         b                   <- _vectors rays `mmMult` transposeNormal
-         return $ a /^ b
-
-distanceFrom :: Monad m => Rays -> Object -> m Vec1
-distanceFrom rays object = do distances <- distanceFrom' rays $ _form object
-                              let flatten = R.reshape (Z :. (S.size $ R.extent distances)) distances
-                              return flatten 
-                              
-
 broadcast 
   :: (R.Source r e, R.Source s e, Monad m) => Array r DIM1 e
      -> Array s DIM2 e
@@ -77,23 +49,11 @@ broadcast array like
     | len == h  = return               $ R.extend (Any :. (w :: Int)) array
     | len == w  = return . R.transpose $ R.extend (Any :. (h :: Int)) array
     | otherwise = fail "`array` must have at least one dimension equal to `like`"
-    where (Z :. len) = R.extent array
+    where (Z :. len)    = R.extent array
           (Z :. h :. w) = R.extent like
 
                                
--- broadcast :: (U.Unbox a, R.Source r a, R.Source s a) =>
---     Array r DIM1 a -> (a -> a -> a) -> Array s DIM2 a -> Array D DIM2 a
--- broadcast a1 op aN = R.traverse aN id $ \getter idx@(Z :. i :. _) -> let aNVal = getter idx
---                                                                          a1Val = a1 ! (Z :. i)
---                                                                       in a1Val `op` aNVal
-origins :: Array D DIM2 Float
-origins = R.fromFunction (Z :. 10 :. 3) $ \(Z :. i :. j) -> fromIntegral $ i + j
-
-point :: Array D DIM1 Float
-point = R.fromFunction (Z :. 3) $ \(Z :. i) -> fromIntegral i
-
-
-march :: Monad m => Rays -> Array U DIM1 Float -> m Vec3
+march :: Monad m => Rays -> Array U DIM1 Double -> m Vec3
 march Rays { _origins = origins, _vectors = vectors } distances =
   do broadcasted <- broadcast distances vectors
      return $ origins +^ (broadcasted *^ vectors)
@@ -101,55 +61,136 @@ march Rays { _origins = origins, _vectors = vectors } distances =
 getNormal :: Object -> Vec1
 getNormal Object { _form = form } = _normal form
 
-reflect :: Vec3 -> Vec3 -> Vec3
-normals `reflect` vectors = vectors
-
 norm2 ::
   (Floating b, R.Source r b, U.Unbox b, R.Shape sh, Monad m) =>
   Array r (sh :. Int) b -> m (Array D sh b)
 norm2 vector = (R.sumP $ R.map (**2) vector) >>= return . (R.map sqrt)
 
-normalize :: Vec3 -> Vec3
-normalize vector = vector -- TODO
+normalize ::
+  (Ord c, U.Unbox c, R.Source r1 c, Floating c, Monad m) =>
+  Array r1 (DIM1 :. Int) c -> m (Array D (DIM1 :. Int) c)
+normalize vector = do norm        <- norm2 vector
+                      let length  = R.map (max 0.0000001) norm
+                      broadcasted <- broadcast length vector
+                      return $ vector /^ broadcasted
 
-v1 :: Array U DIM1 Int
-v1 = R.computeS $ R.fromFunction (Z :. 3) $ \(Z :. i) -> (i :: Int)
+v1 :: Array U DIM1 Double
+v1 = R.computeS $ R.fromFunction (Z :. 6) $ \(Z :. i) -> fromIntegral i
   
 
-v2 :: Array U DIM2 Int
-v2 = R.computeS $ R.fromFunction (Z :. 2 :. 3) $ \(Z :. i :. j) -> (2 * i + j :: Int)
+v2 :: Array U DIM2 Double
+v2 = R.computeS $ R.fromFunction (Z :. 2 :. 3) $ \(Z :. i :. j) -> fromIntegral $ 2 * i + j
+
+reflect :: (Floating e, U.Unbox e, Ord e, R.Source r e, Monad m) =>
+    Array r ((Z :. Int) :. Int) e -> Array r ((Z :. Int) :. Int) e -> m (Array D DIM2 e)
+normals `reflect` vectors = --return normals
+  do vectorAngles <- toSphericalCoords (R.map negate vectors)
+     normalAngles <- toSphericalCoords normals
+     let [newTheta, newPhi] = [vecAngle +^ R.map (*2) (normAngle -^ vecAngle)
+                              | (vecAngle, normAngle) <- zip vectorAngles normalAngles]
+     return $ fromSphericalCoords newTheta newPhi
+  -- TODO : random reflection
+  
 
 
--- toSpericalCoords :: Vec3 -> (Vec1, Vec1)
--- toSpericalCoords cartesianCoords =
---   acos 
+toSphericalCoords ::
+  (Floating b, U.Unbox b, Ord b, Monad m, R.Source r b) =>
+  Array r ((Z :. Int) :. Int) b -> m [Array D DIM1 b]
+toSphericalCoords cartesianCoords =
+  do let (Z :. h :. _) = R.extent cartesianCoords
+     let xyComponent   = R.fromFunction (Z :. h :. 2) (cartesianCoords !)
+     normalized        <- normalize xyComponent
+     let xComponent    = R.slice normalized      (Any :. (0 :: Int))
+     let zComponent    = R.slice cartesianCoords (Any :. (2 :: Int))
+     return $ map (R.map acos) [xComponent, zComponent]
+
+fromSphericalCoords ::
+  (R.Source r1 e, R.Source r e, Floating e) =>
+  Array r1 DIM1 e
+  -> Array r DIM1 e -> Array D DIM2 e
+fromSphericalCoords theta phi = x' ++ y' ++ z'
+  where x = R.map sin phi *^ R.map cos theta
+        y = R.map sin phi *^ R.map sin theta
+        z = R.map cos phi
+        [x', y', z'] = map transposeVector [x, y, z]
+
+transposeVector ::
+  (Num head, S.Shape (Z :. head1), S.Shape ((Z :. head1) :. head),
+   R.Source r1 e) =>
+  Array r1 (Z :. head1) e -> Array D ((Z :. head1) :. head) e
+transposeVector vector = R.reshape (Z :. len :. 1) vector
+  where (Z :. len) = R.extent vector
 
 
-filter3 ::  (U.Unbox a, Monad m) =>
-  Array D DIM1 b -> (b -> Bool) -> Array D DIM2 a -> m (Array D DIM2 a)
-filter3 filterer cond filtered = do
-  let (Z :. len)       = R.extent filterer
-  let filteredGetter n = filtered ! (Z :. n `quot` 3 :. n `mod` 3)
-  flattened <- R.selectP (cond . (R.linearIndex filterer)) filteredGetter len
-  return $ R.reshape (Z :. len :. 3) flattened
-
-
-filter1 :: (U.Unbox a, R.Source r a, Monad m) =>
-    Array D DIM1 b -> (b -> Bool) -> Array r DIM1 a -> m (Array U DIM1 a)
-filter1 filterer cond array = R.selectP (cond . (R.linearIndex filterer)) (R.linearIndex array) len
-  where (Z :. len) = R.extent array
-
-
+  -- TODO: remove
 catMaybeArray :: (U.Unbox a, Monad m) => Array D DIM1 (Maybe a) -> m (Array U DIM1 a)
 catMaybeArray array = R.selectP (isJust . (R.linearIndex array))
                       (fromJust . (R.linearIndex array)) . S.size $ R.extent array
+  -- END: remove
 
-unnestArray array w = R.fromFunction (Z :. h :. w) $ \(Z :. i :. j) -> array ! (Z :. i) ! (Z :. j)
+unnestArray :: (R.Source r (Array s DIM1 a), R.Source s a) =>
+    Int -> Array r DIM1 (Array s DIM1 a) -> Array D DIM2 a
+unnestArray w array = R.fromFunction (Z :. h :. w) $ \(Z :. i :. j) -> array ! (Z :. i) ! (Z :. j)
   where (Z :. h) = R.extent array
 
-                           
 
-bounce :: (Rays, Array D DIM1 (Array D DIM1 Float)) -> (Rays, Array D DIM1 (Array D DIM1 Float))
+distanceFrom' :: Monad m => Rays -> Form -> m (Array D DIM2 (Maybe Double))
+distanceFrom' rays@Rays { _origins = origins, _vectors = vectors } form =
+  case form of
+    Disk { _center = center, _normal = normal }        ->
+      distanceFrom' rays $ InfinitePlane { _point  = center , _normal = normal }
+    InfinitePlane { _point = point, _normal = normal } -> 
+      do broadcasted     <- broadcast point origins
+         transposeNormal <- R.computeP $ R.reshape (Z :. 3 :. 1) normal
+         originToPoint   <- R.computeP $ broadcasted -^ origins
+         vectors         <- R.computeP $ _vectors rays
+         a               <- originToPoint `M.mmultP` transposeNormal
+         b               <- vectors `M.mmultP` transposeNormal     
+         return $ R.map (\x -> if x < 0 then Nothing else Just x) (a /^ b)
+
+distanceFrom :: Monad m => Rays -> Object -> m (Array D DIM1 (Maybe Double))
+distanceFrom rays object = do distances <- distanceFrom' rays $ _form object
+                              let flatten = R.reshape (Z :. (S.size $ R.extent distances)) distances
+                              return flatten 
+
+filter' :: (U.Unbox a, Monad m, R.Source r a, R.Source s Bool, S.Shape sh1, S.Shape sh2) =>
+    Array s sh1 Bool -> Array r sh2 a -> m (Array U DIM1 a)
+filterer `filter'` filtered = R.selectP cond constructor sizeFiltered
+        where cond              = R.linearIndex filterer . (`quot` width)
+              constructor       = R.linearIndex filtered
+              sizeFiltered      = S.size $ R.extent filtered
+              width             = sizeFiltered `quot` (S.size $ R.extent filterer)
+
+
+getNormals :: R.Source r Int => Array r DIM1 Int -> Array D DIM2 Double
+getNormals objectIdxs = unnestArray 3 (R.map (getNormal . (objects !!)) objectIdxs)
+
+
+checkLight :: (t -> Maybe Int) -> t -> Bool
+checkLight src i = maybe False (_light . (objects !!)) $ src i
+
+getDistance
+  :: (R.Source r (Maybe Double), S.Shape t) =>
+  [Array r t (Maybe Double)] -> (t -> Maybe Int) -> t -> Maybe Double
+getDistance distancesToObjects src i = maybe Nothing (\j -> distancesToObjects !! j ! i) $ src i
+
+indexArrayList ::
+  (R.Source r1 (Maybe a), R.Source r (Maybe Int), S.Shape sh) =>
+  [Array r1 sh (Maybe a)]
+  -> Array r sh (Maybe Int) -> Array D sh (Maybe a)
+indexArrayList arrayList idxs = R.traverse idxs id $ \src i -> let maybeIdx = src i
+                                                                   lookup j  = arrayList !! j ! i
+                                                               in  maybe Nothing lookup maybeIdx
+
+indexList :: (R.Source r (Maybe Int), S.Shape sh) =>
+    [Maybe a] -> Array r sh (Maybe Int) -> Array D sh (Maybe a)
+indexList list idxs = R.traverse idxs id (maybe Nothing (list !!) .)
+
+
+getClosestObjects :: Maybe Int -> Maybe Object
+getClosestObjects = fmap (objects !!)
+
+bounce :: (Rays, Array D DIM1 (Array D DIM1 Double)) -> (Rays, Array D DIM1 (Array D DIM1 Double))
 bounce (rays, canvas) = fromJust $ do
         -- get values for new rays
         let Rays { _origins   = origins
@@ -159,61 +200,86 @@ bounce (rays, canvas) = fromJust $ do
                  , _num       = num } = rays
 
         -- get distances to closest objects
-        let distancesToObjects   = mapMaybe (distanceFrom rays) objects  :: [Vec1]
-        let closestObjectIdxs    = minIndex distancesToObjects      :: Array D DIM1 (Maybe Int)
-        let getDistance getIdx i = maybe inf (\j -> distancesToObjects !! j ! i) $ getIdx i  
-        let closestDistances     = R.traverse closestObjectIdxs id getDistance
+        let distancesToObjects = mapMaybe (distanceFrom rays) objects
+              :: [Array D DIM1 (Maybe Double)]
+        let closestObjectIdxs  = minIndexArrays distancesToObjects
+              :: Array D DIM1 (Maybe Int)
+        let traverseObjects    = R.traverse closestObjectIdxs id -- :: f src i -> array
+        let closestDistances   = indexArrayList distancesToObjects closestObjectIdxs
+        let closestObjects     = traverseObjects (getClosestObjects .)
 
         -- get filter criteria
-        let checkLight getIdx i  = maybe False (_light . (objects !!)) $ getIdx i
-        let hitLight             = R.traverse closestObjectIdxs id checkLight
-        let hitNothing           = R.map isNothing closestObjectIdxs
-        let terminal             = R.zipWith (||) hitLight hitNothing
-        let nonterminal          = R.map not terminal
+        let hitLight          = traverseObjects checkLight
+        let hitNothing        = R.map isNothing closestObjectIdxs
+        let terminal          = R.zipWith (||) hitLight hitNothing
+        let nonterminal       = R.map not terminal :: Array D DIM1 Bool
         
         -- filter out terminal
-        distances'          <- filter1 nonterminal id closestDistances
-        pixels'             <- filter1 nonterminal id pixels
-        origins'            <- filter3 nonterminal id origins
-        closestObjectIdxs'  <- catMaybeArray closestObjectIdxs
+        distances'          <- nonterminal `filter'` R.map (fromMaybe inf) closestDistances
+        pixels'             <- nonterminal `filter'` pixels
+        origins'            <- nonterminal `filter'` origins
+        closestObjectIdxs'  <- nonterminal `filter'` R.map (fromMaybe 0) closestObjectIdxs
 
         -- get new vectors
+        let normals       = getNormals closestObjectIdxs'
+        vectors'          <- normals `reflect` vectors
         points            <- march rays distances'
-        let nestedNormals = R.map (getNormal . (objects !!)) closestObjectIdxs'
-        let normals       = unnestArray nestedNormals 3
-        let vectors'      = normals `reflect` vectors
 
-        let rays' = Rays { _origins   = points
+        let rays' = Rays { _origins   = reshape [-1, 3] origins'
                          , _distances = distances'
                          , _pixels    = pixels'
                          , _vectors   = vectors'
                          , _num       = S.size $ R.extent distances' }
 
         -- Every bounce, multiply color of objects struck by rays with the canvas
-        let canvas' = R.traverse closestObjectIdxs id $ \f i ->
-              let objectColor = getColor $ f i
-                  pixel       = (Z :. pixels ! i)
-              in (canvas ! pixel) *^ objectColor
+        let canvas' = traverseObjects $ applyColor pixels canvas
 
         return (rays', canvas')
   
+applyColor ::
+  (R.Source r (Array r1 DIM1 Double), R.Source r1 Double,
+   R.Source r2 head, S.Shape (Z :. head), S.Shape t) =>
+  Array r2 t head
+  -> Array r (Z :. head) (Array r1 DIM1 Double)
+  -> (t -> Maybe Int)
+  -> t
+  -> Array D DIM1 Double
+applyColor pixels canvas src i = let objectColor = getColor $ src i
+                                     pixel       = (Z :. pixels ! i)
+                                  in (canvas ! pixel) *^ objectColor
 
-
-getColor :: Maybe Int -> Array D DIM1 Float
+getColor :: Maybe Int -> Array D DIM1 Double
 getColor = maybe black (\i -> _color $ objects !! i)
   where black = R.fromFunction (Z :. 3) $ const 0
 
-minIndexOf2 :: (Vec1, Array D DIM1 (Maybe Int)) -> (Vec1, Int) -> (Vec1, Array D DIM1 (Maybe Int))
-minIndexOf2 (minVal, minIdx) (val, idx) = (R.zipWith min minVal val, minIdx')
-  where minIdx' = R.fromFunction (R.extent minVal) (\sh -> if (val `lessThan` minVal ! sh)
-                                                           then Just idx
-                                                           else minIdx ! sh)
 
-minIndex :: [Vec1] -> Array D DIM1 (Maybe Int)
-minIndex arrays = minIdx
-  where (_, minIdx) = foldl minIndexOf2 (infs, nothings) $ zip arrays [0..]
-        infs        = R.fromFunction shape $ const inf
-        nothings    = R.fromFunction shape $ const Nothing
-        shape       = (Z :. round inf)
+minIndex' :: Maybe (Double, Int) -> Int -> [Maybe Double] -> Maybe Int
+minIndex' Nothing               idx []     = Nothing
+minIndex' (Just (minX, minIdx)) idx []     = Just minIdx 
+minIndex' minPair               idx (x:xs) = minIndex' minPair' (idx + 1) xs
+  where minPair' = case (x, minPair) of
+                     (Nothing, _                  ) -> minPair
+                     (Just x', Nothing            ) -> Just (x', idx)
+                     (Just x', Just (minX, minIdx)) -> if x' < minX
+                                                       then Just (x', idx)
+                                                       else minPair
+    
+  
 
+minIndexArrays :: [Array D DIM1 (Maybe Double)] -> Array D DIM1 (Maybe Int)
+minIndexArrays [] = error "Cannot take minIndex of empty list"
+minIndexArrays arrays@(array:_) = R.fromFunction (R.extent array)
+  $ \i -> minIndex' Nothing 0 $ map (! i) arrays
+
+
+
+-- getClosestObject = foldl (\(closest, distance), object -> if distanceFrom
+
+-- getClosestObjects rays = R.fromFunction (Z :. _num rays) $ \ (Z :. row) -> foldOverObjects row
+
+origins :: Array D DIM2 Double
+origins = R.fromFunction (Z :. 10 :. 3) $ \(Z :. i :. j) -> fromIntegral $ i + j
+
+point :: Array D DIM1 Double
+point = R.fromFunction (Z :. 3) $ \(Z :. i) -> fromIntegral i
 
