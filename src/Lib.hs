@@ -1,7 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Lib ( Ray (..)
            , Canvas
-           , inf
            , reshape
            , expandDim
            , flatten
@@ -14,11 +13,9 @@ import Triple (Vec3, RGB8)
 import Data.Array.Repa (Array, DIM1, DIM2, D)
 
 type Canvas = Array D DIM2 RGB8
+
 data Ray = Ray { _origin   :: Vec3
                , _vector   :: Vec3 }
-
-inf :: Double
-inf = 1 / 0
 
 inferMissing :: (Show a, Integral a) => [a] -> [a] -> [a]
 inferMissing list listWithNeg

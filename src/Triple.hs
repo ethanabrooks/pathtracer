@@ -7,10 +7,6 @@ module Triple ( Triple (..)
               ) where
 
 import qualified Codec.Picture as P
-import qualified Data.Array.Repa     as R -- for Repa
-import qualified Data.Array.Repa.Shape as S
-import Data.Array.Repa (Array, DIM1, DIM2, DIM3, U, D, Z (..), (:.)(..),
-                        (!), (++), (*^), (+^), (-^), (/^))
 import Control.Applicative
 
 data Triple a = Triple a a a

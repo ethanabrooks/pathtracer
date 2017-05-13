@@ -23,12 +23,10 @@ import qualified Data.Vector                  as V
 import Object
 import Data.Maybe
 import Triple (Triple (..), RGB8, Vec3, normalize)
-import Lib (flatten, Ray (..), Canvas, inf, mapIndex)
+import Lib (flatten, Ray (..), Canvas, mapIndex)
 import Data.Vector (Vector)
 
 type RGB8' = (Pixel8, Pixel8, Pixel8)
-
-
 
 -- | Get image with true color pixels from manifest Repa array.
 toImage :: Array U DIM2 RGB8' -> Image PixelRGB8
@@ -37,7 +35,6 @@ toImage a = generateImage gen width height
         gen x y = let (r,g,b) = a ! (Z :. x :. y)
                   in PixelRGB8 r g b
 
-
 -- | Paramters
 
 numRays = imgHeight * imgWidth
@@ -45,21 +42,12 @@ numRays = imgHeight * imgWidth
 imgDimensions :: DIM2
 imgDimensions = (Z :. imgHeight :. imgWidth)
 
-
-
 numIters :: Int
 numIters = 100
 
 type ImageArray = Array D DIM2 RGB8'
 
 l = 100000
-
-canvas :: Canvas
-canvas = R.fromFunction (Z :. imgHeight :. imgWidth) $ const black
-
-blankCanvas :: Canvas
-blankCanvas = R.fromFunction (Z :. imgHeight :. imgWidth) $ const white
-
 
 main :: IO ()
 main = do
@@ -89,6 +77,13 @@ originalFnc (Z :. x :. y) =
 imgHeight = 2 :: Int --1200
 imgWidth  = 4 :: Int --1200
 cameraDepth = 10 :: Double
+
+canvas :: Canvas
+canvas = R.fromFunction (Z :. imgHeight :. imgWidth) $ const black
+
+blankCanvas :: Canvas
+blankCanvas = R.fromFunction (Z :. imgHeight :. imgWidth) $ const white
+
 
 black = pure 0 :: RGB8
 white = pure 1 :: RGB8
@@ -149,7 +144,7 @@ normal `reflect` vector = fromSphericalCoords theta phi
 
 closest :: Maybe Double -> Maybe Double -> Ordering
 closest d1 d2 = compare d1' d2'
-  where [d1', d2'] = map (fromMaybe inf) [d1, d2]
+  where [d1', d2'] = map (fromMaybe $ 1/0) [d1, d2]
 
 
 getClosestObject :: Ray -> Maybe Object
