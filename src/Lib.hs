@@ -9,6 +9,8 @@ module Lib ( Rays (..)
            , filterWith
            , emptyRays
            , reshape
+           , expandDim
+           , flatten
            ) where
 
 import Control.Lens
@@ -181,3 +183,15 @@ inferMissing list listWithNeg
 reshape :: (R.Source r1 e, S.Shape sh1, S.Shape sh2) => [Int] -> Array r1 sh1 e -> Array D sh2 e
 reshape shape array = R.reshape (S.shapeOfList shape') array
   where shape' = inferMissing (S.listOfShape (R.extent array)) shape
+
+flatten :: (R.Source r1 e, S.Shape sh1, S.Shape sh2) => Array r1 sh1 e -> Array D sh2 e
+flatten array = reshape [-1] array
+
+expandDim :: (R.Source r1 e, S.Shape sh1, S.Shape sh2) => Int -> Array r1 sh1 e -> Array D sh2 e
+expandDim dim array = R.reshape shape array
+  where shape            = S.shapeOfList . (insertAt dim 1) . S.listOfShape $ R.extent array
+
+
+insertAt :: Int -> a -> [a] -> [a]
+insertAt n x list = (take n list) ++ [x] ++ (drop n list)
+  

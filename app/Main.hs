@@ -3,7 +3,9 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeOperators   #-}
 
-module Main (main) where
+module Main ( main
+            , RGB8
+            ) where
 
 import Control.Lens
 import Data.List
@@ -16,7 +18,7 @@ import System.FilePath (replaceExtension)
 import qualified Codec.Picture.Types as M
 import qualified Data.Array.Repa     as R -- for Repa
 import Lib (Vec3, Rays, _num)
-import Object (filter1)
+import Object
 import Data.Maybe
 
 type RGB8 = (Pixel8, Pixel8, Pixel8)
@@ -73,7 +75,6 @@ originalFnc (Z :. x :. y) =
   let (q, r) = x `quotRem` max 3 y
   in  newRGB q r (q + r + 30)
 
-blankCanvas = R.fromFunction imgDimensions $ const 0 :: Vec3
 
 -- repaImg' = vec3ToImage $ iterate rayTrace blankCanvas !! numIters :: ImageArray
 
