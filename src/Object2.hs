@@ -4,7 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Object where
+module Object2 where
 
 import qualified Data.Array.Repa     as R -- for Repa
 import qualified Data.Array.Repa.Shape as S
