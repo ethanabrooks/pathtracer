@@ -36,7 +36,9 @@ executable pathtracer-exe
   build-depends:       base
                      , pathtracer
                      , vector
+                     , monad-loops
                      , lens
+                     , monad-loops
                      , repa
                      , JuicyPixels
                      , filepath
@@ -48,7 +50,7 @@ executable pathtracer-exe
 test-suite pathtracer-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
-  main-is:             Spec.hs
+  main-is:             Props.hs
   build-depends:       base
                      , pathtracer
                      , QuickCheck

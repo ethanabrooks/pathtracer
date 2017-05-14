@@ -1,18 +1,19 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Lib ( Ray (..)
-           , Canvas
            , reshape
            , expandDim
            , flatten
            , mapIndex
+           , toSphericalCoords
+           , fromSphericalCoords
+           , black
+           , white
            ) where
 
 import qualified Data.Array.Repa     as R -- for Repa
 import qualified Data.Array.Repa.Shape as S
-import Triple (Vec3, RGB8)
+import Triple (Triple (..), Vec3, RGB8, normalize)
 import Data.Array.Repa (Array, DIM1, DIM2, D)
-
-type Canvas = Array D DIM2 RGB8
 
 data Ray = Ray { _origin   :: Vec3
                , _vector   :: Vec3 }
@@ -44,3 +45,18 @@ expandDim dim array = R.reshape shape array
 
 insertAt :: Int -> a -> [a] -> [a]
 insertAt n x list = (take n list) ++ [x] ++ (drop n list)
+
+black = pure 0 :: RGB8
+white = pure 1 :: RGB8
+
+toSphericalCoords :: Vec3 -> (Double, Double)
+toSphericalCoords coord = (theta, phi)
+  where [theta, phi]  = map acos [x', z]
+        Triple x y z  = normalize coord
+        Triple x' _ _ = normalize $ Triple x y 0
+
+fromSphericalCoords :: Floating t => t -> t -> Triple t
+fromSphericalCoords theta phi = Triple x y z
+  where x = sin phi * cos theta
+        y = sin phi * sin theta
+        z = cos phi
