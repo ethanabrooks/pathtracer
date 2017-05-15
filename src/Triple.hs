@@ -58,6 +58,7 @@ instance Num a => Num (Triple a) where
   fromInteger = fmap fromInteger . pure
   negate = fmap negate
 
+
 instance Arbitrary a => Arbitrary (Triple a) where
   arbitrary = do a1 <- arbitrary
                  a2 <- arbitrary

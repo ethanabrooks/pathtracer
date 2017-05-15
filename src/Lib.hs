@@ -47,7 +47,7 @@ insertAt :: Int -> a -> [a] -> [a]
 insertAt n x list = (take n list) ++ [x] ++ (drop n list)
 
 black = pure 0 :: RGB8
-white = pure 1 :: RGB8
+white = pure 255 :: RGB8
 
 toSphericalCoords :: Vec3 -> (Double, Double)
 toSphericalCoords coord = (theta, phi)

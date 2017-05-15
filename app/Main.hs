@@ -32,29 +32,39 @@ import System.Random
 
 toImage :: (R.Source r RGB8, S.Shape sh) => Array r sh RGB8 -> P.DynamicImage
 toImage canvas = P.ImageRGB8 $ P.generateImage fromCoords imgHeight imgWidth
-  where fromCoords i j = convert $ canvas' ! (Z :. i :. j) * 255
+  where fromCoords i j = convert $ canvas' ! (Z :. i :. j)
         convert (Triple r g b) = P.PixelRGB8 r g b
         canvas' = reshape [imgHeight, imgWidth] canvas
 
 -- | Paramters
-imgHeight = 150 :: Int --1200
-imgWidth  = 150 :: Int --1200
-cameraDepth = 10 :: Double
+imgHeight = 100 :: Int --1200
+imgWidth  = 100 :: Int --1200
+cameraDepth = 50 :: Double
 
 numIters :: Int
-numIters = 2
+numIters = 4
 -- |
 
 main :: IO ()
 main = do (_, canvas) <- mainLoop
           (P.savePngImage "image.png" . toImage) canvas
 
+rZipWith3 :: (R.Source r1 a, R.Source r2 b, R.Source r3 c, S.Shape sh) =>
+  (a -> b -> c -> d) ->
+  Array r1 sh a ->
+  Array r2 sh b ->
+  Array r3 sh c ->
+  Array D sh d
+rZipWith3 = ((R.zipWith id .) .) . R.zipWith
 
 mainLoop :: IO (Int, Array D DIM1 RGB8)
 mainLoop = iterateUntilM ((== numIters) . fst)
-  (\(n, canvas) -> return (n + 1, R.zipWith rayTrace raysFromCam canvas))
+  (\(n, canvas) -> do let randomSeeds = randomInts (imgHeight * imgWidth) n
+                      return (n + 1, rZipWith3 rayTrace randomSeeds raysFromCam canvas))
   (1, flatten blankCanvas)
 
+randomInts :: Int -> Int -> Array U DIM1 Int
+randomInts len = R.fromListUnboxed (Z :. len) . (take len . randoms) . mkStdGen
 
 raysFromCam :: Array D DIM1 Ray
 raysFromCam = flatten $ mapIndex camToPixelRay blankCanvas
@@ -71,20 +81,29 @@ blankCanvas = R.fromFunction (Z :. imgHeight :. imgWidth) $ const white
 
 ---
 
-rayTrace :: Ray -> RGB8 -> RGB8
-rayTrace ray pixel = snd $ until (isNothing . fst) update (Just ray, pixel)
+rayTrace :: Int -> Ray -> RGB8 -> RGB8
+rayTrace i ray pixel = pixel'
+  where (_, _, pixel') = until (isNothing . (\(_, ray, _) -> ray)) update (i, Just ray, pixel)
 
 ---
 
-update :: (Maybe Ray, RGB8) -> (Maybe Ray, RGB8)
-update (Nothing, pixel)       = (Nothing, pixel)
-update ((Just ray), pixel)    =
+update :: (Int, Maybe Ray, RGB8) -> (Int, Maybe Ray, RGB8)
+update (seed, Nothing, pixel)       = (seed, Nothing, pixel)
+update (seed, (Just ray), pixel)    =
   case closestTo ray of
-    Nothing                  -> (Nothing, black)
+    Nothing                  -> (seed, Nothing, black)
     Just (object, distance)  -> stopAtLight object
       where stopAtLight object
-              | _light object = (Nothing, pixel)
-              | otherwise     = (bounce ray object distance, pixel * _color object)
+              | _light object = (seed, Nothing, white)
+              | otherwise     = ( getRandom random seed :: Int
+                                , bounce seed ray object distance
+                                , pixel')
+                  where pixel' = fmap ((`quot` 255)) pixel * (_color object)
+                -- in trace ("pixel: " ++ show pixel ++
+                --                        "\ncolor: " ++ show (_color object))
+                -- ( getRandom random seed :: Int
+                --                 , bounce seed ray object distance
+                --                 , trace ("product: " ++ show pixel') pixel')
 
 
 closestTo :: Ray -> Maybe (Object, Double)
@@ -99,28 +118,42 @@ closest (Just (_, d1)) (Just (_, d2)) = compare d1 d2
 
 ---
 
-bounce :: Ray -> Object -> Double -> Maybe Ray
-bounce ray object distance = Just $ Ray { _origin = origin, _vector = vector }
+bounce :: Int -> Ray -> Object -> Double -> Maybe Ray
+bounce i ray object distance = Just $ Ray { _origin = origin, _vector = vector }
   where origin = march ray distance                             :: Vec3
-        vector = object `reflect` _vector ray :: Vec3
+        vector = reflect i object $ _vector ray :: Vec3
 
 
-reflect :: Object -> Vec3 -> Triple Double
-object `reflect` vector
-  | _reflective object = uncurry fromSphericalCoords $ specular vAngles nAngles
-  | otherwise          = vector -- uncurry fromSphericalCoords $ diffuse nAngles
+reflect :: Int -> Object -> Vec3 -> Triple Double
+reflect seed object vector
+  | _reflective object = fromSphericalCoords' $ specular seed vAngles nAngles
+  | otherwise          = fromSphericalCoords' $ diffuse seed nAngles
   where [vAngles, nAngles] = map toSphericalCoords [-vector, getNormal $ _form object]
+        fromSphericalCoords' = uncurry fromSphericalCoords
+
   --       [thetas, phis] = [map fst angles, map snd angles]
   --       [theta, phi]   = [vectorAngle + 2 * (normalAngle - vectorAngle)
   --                        | [vectorAngle, normalAngle] <- [thetas, phis]]
 
-specular (vTheta, vPhi) (nTheta, nPhi) = (theta, phi)
-  where [theta, phi] = [vAngle + 2 * (nAngle - vAngle)
+specular
+  :: Int -> (Double, Double) -> (Double, Double) -> (Double, Double)
+specular seed (vTheta, vPhi) (nTheta, nPhi) = (theta, phi)
+  where noise = getRandom (randomR (0, 0.000001)) seed :: Double
+        [theta, phi] = [vAngle + 2 * (nAngle - vAngle) + noise
                        | (vAngle, nAngle) <- [(vTheta, nTheta), (vPhi, nPhi)]]
 
-diffuse (nTheta, nPhi) = (nTheta + rand, nPhi + rand)
-  where rand = getStdRandom (randomR (-pi / 2, pi / 2))
+diffuse :: Int -> (Double, Double) -> (Double, Double)
+diffuse seed (nTheta, nPhi) = (nTheta + noise1, nPhi + noise2)
+  where (noise1, gen) = getRandom' $ mkStdGen seed
+        (noise2, _) = getRandom' gen
+        getRandom' = randomR (-pi / 2, pi / 2) :: StdGen -> (Double, StdGen)
 
 rand :: IO Double
 rand = getStdRandom (randomR (-pi / 2, pi / 2))
   
+
+getRandom :: (StdGen -> (a, b)) -> Int -> a
+getRandom randomizer = fst . randomizer . mkStdGen
+
+
+

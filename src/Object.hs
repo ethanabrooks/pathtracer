@@ -40,20 +40,31 @@ infPlane = Object
   }
 
 light = Object
-  { _color       = white
+  { _color       = pure 0
   , _name        = "light"
   , _light       = True
   , _reflective  = True
   , _form        = Disk
     { _center = Triple 1 1 0.5
     , _normal = Triple 0 1 1
-    , _radius = 0.5 }
+    , _radius = 0.2 }
+  }
+
+disk = Object
+  { _color       = pure 100
+  , _name        = "disk"
+  , _light       = False
+  , _reflective  = False
+  , _form        = Disk
+    { _center = Triple 0 1 0.5
+    , _normal = Triple 1 0 1
+    , _radius = 0.3 }
   }
 
 some_vec = pure 1
 
 objects :: Vector Object
-objects = fromList [light] 
+objects = fromList [light, disk] 
 
 ---
  
