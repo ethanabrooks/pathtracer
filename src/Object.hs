@@ -45,7 +45,7 @@ light = Object
   , _light       = True
   , _reflective  = True
   , _form        = Disk
-    { _center = Triple 1 1 0.5
+    { _center = Triple 0 0.2 0.5
     , _normal = Triple 0 1 1
     , _radius = 0.2 }
   }
