@@ -52,7 +52,8 @@ main = do (_, canvas) <- mainLoop
 
 mainLoop :: IO (Int, Array D DIM1 RGB8)
 mainLoop = iterateUntilM ((== numIters) . fst)
-  (\(n, canvas) -> return (n + 1, R.zipWith rayTrace raysFromCam canvas))
+  (\(n, canvas) -> do canvas' <- R.zipWith rayTrace raysFromCam canvas
+                      return (n + 1, canvas'))
   (1, flatten blankCanvas)
 
 
@@ -71,20 +72,21 @@ blankCanvas = R.fromFunction (Z :. imgHeight :. imgWidth) $ const white
 
 ---
 
-rayTrace :: Ray -> RGB8 -> RGB8
-rayTrace ray pixel = snd $ until (isNothing . fst) update (Just ray, pixel)
+rayTrace :: Monad m => Ray -> RGB8 -> m RGB8
+rayTrace ray pixel = snd $ iterateUntilM (isNothing . fst) update (Just ray, pixel)
 
 ---
 
-update :: (Maybe Ray, RGB8) -> (Maybe Ray, RGB8)
-update (Nothing, pixel)       = (Nothing, pixel)
+update :: Monad m => (Maybe Ray, RGB8) -> m (Maybe Ray, RGB8)
+update (Nothing, pixel)       = return (Nothing, pixel)
 update ((Just ray), pixel)    =
   case closestTo ray of
-    Nothing                  -> (Nothing, black)
+    Nothing                  -> return (Nothing, black)
     Just (object, distance)  -> stopAtLight object
       where stopAtLight object
-              | _light object = (Nothing, pixel)
-              | otherwise     = (bounce ray object distance, pixel * _color object)
+              | _light object = return (Nothing, pixel)
+              | otherwise     = do ray' <- bounce ray object distance
+                                   return (ray', pixel * _color object)
 
 
 closestTo :: Ray -> Maybe (Object, Double)
