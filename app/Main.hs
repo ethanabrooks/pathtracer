@@ -28,6 +28,7 @@ import Control.Monad
 import Control.Monad.Loops
 import Debug.Trace
 import System.Random
+import Control.Monad.Random.Class
 
 
 toImage :: (R.Source r RGB8, S.Shape sh) => Array r sh RGB8 -> P.DynamicImage
@@ -52,7 +53,8 @@ main = do (_, canvas) <- mainLoop
 
 mainLoop :: IO (Int, Array D DIM1 RGB8)
 mainLoop = iterateUntilM ((== numIters) . fst)
-  (\(n, canvas) -> do canvas' <- R.zipWith rayTrace raysFromCam canvas
+  (\(n, canvas) -> do f r c =  
+                      canvas' <- R.zipWith (fmap rayTrace) raysFromCam canvas
                       return (n + 1, canvas'))
   (1, flatten blankCanvas)
 
@@ -72,12 +74,13 @@ blankCanvas = R.fromFunction (Z :. imgHeight :. imgWidth) $ const white
 
 ---
 
-rayTrace :: Monad m => Ray -> RGB8 -> m RGB8
-rayTrace ray pixel = snd $ iterateUntilM (isNothing . fst) update (Just ray, pixel)
+rayTrace :: Ray -> RGB8 -> IO RGB8
+rayTrace ray pixel = do (Just r, p) <- iterateUntilM (isNothing . fst) update (Just ray, pixel)
+                        return p
 
 ---
 
-update :: Monad m => (Maybe Ray, RGB8) -> m (Maybe Ray, RGB8)
+update :: (Maybe Ray, RGB8) -> IO (Maybe Ray, RGB8)
 update (Nothing, pixel)       = return (Nothing, pixel)
 update ((Just ray), pixel)    =
   case closestTo ray of
@@ -101,27 +104,37 @@ closest (Just (_, d1)) (Just (_, d2)) = compare d1 d2
 
 ---
 
-bounce :: Ray -> Object -> Double -> Maybe Ray
-bounce ray object distance = Just $ Ray { _origin = origin, _vector = vector }
-  where origin = march ray distance                             :: Vec3
-        vector = object `reflect` _vector ray :: Vec3
+bounce :: Ray -> Object -> Double -> IO (Maybe Ray)
+bounce ray object distance = do 
+  let origin = march ray distance
+  vector <- object `reflect` _vector ray 
+  return . Just $ Ray { _origin = origin, _vector = vector }
 
 
-reflect :: Object -> Vec3 -> Triple Double
+reflect :: Object -> Vec3 -> IO Vec3
 object `reflect` vector
-  | _reflective object = uncurry fromSphericalCoords $ specular vAngles nAngles
-  | otherwise          = vector -- uncurry fromSphericalCoords $ diffuse nAngles
+  | _reflective object = do (theta, phi) <- specular vAngles nAngles
+                            return $ fromSphericalCoords theta phi
+  | otherwise          = return vector -- uncurry fromSphericalCoords $ diffuse nAngles
   where [vAngles, nAngles] = map toSphericalCoords [-vector, getNormal $ _form object]
   --       [thetas, phis] = [map fst angles, map snd angles]
   --       [theta, phi]   = [vectorAngle + 2 * (normalAngle - vectorAngle)
   --                        | [vectorAngle, normalAngle] <- [thetas, phis]]
 
-specular (vTheta, vPhi) (nTheta, nPhi) = (theta, phi)
-  where [theta, phi] = [vAngle + 2 * (nAngle - vAngle)
-                       | (vAngle, nAngle) <- [(vTheta, nTheta), (vPhi, nPhi)]]
+specular (vTheta, vPhi) (nTheta, nPhi) = do
+  let rand = getStdRandom (randomR (0, 0.00001))
+  noise1 <- rand
+  noise2 <- rand
+  let [theta, phi] = [vAngle + 2 * (nAngle - vAngle) + noise
+                     | (vAngle, nAngle, noise) <-
+                       [(vTheta, nTheta, noise1), (vPhi, nPhi, noise2)]]
+  return (theta, phi)
 
-diffuse (nTheta, nPhi) = (nTheta + rand, nPhi + rand)
-  where rand = getStdRandom (randomR (-pi / 2, pi / 2))
+diffuse (nTheta, nPhi) = do
+  let rand = getStdRandom (randomR (-pi / 2, pi / 2))
+  noise1 <- rand
+  noise2 <- rand
+  return (nTheta + noise1, nPhi + noise2)
 
 rand :: IO Double
 rand = getStdRandom (randomR (-pi / 2, pi / 2))
