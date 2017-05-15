@@ -27,6 +27,8 @@ import Data.Maybe
 import Control.Monad
 import Control.Monad.Loops
 import Debug.Trace
+import System.Random
+
 
 toImage :: (R.Source r RGB8, S.Shape sh) => Array r sh RGB8 -> P.DynamicImage
 toImage canvas = P.ImageRGB8 $ P.generateImage fromCoords imgHeight imgWidth
@@ -67,25 +69,6 @@ camToPixelRay (Z :. i :. j) = Ray
 blankCanvas :: Array D DIM2 RGB8
 blankCanvas = R.fromFunction (Z :. imgHeight :. imgWidth) $ const white
 
-
--- simpleRGB :: Array D DIM1 RGB8
--- simpleRGB = R.fromFunction (Z :. 2) (\(Z :. i) -> let i' = fromIntegral i :: P.Pixel8
---                                                       in Triple i' (i'+1) (i'+2)) 
--- simpleDim2 :: Array U DIM2 Int
--- simpleDim2 = R.computeS $ R.fromFunction (Z :. 2 :. 3) (\(Z :. i :. j) -> fromIntegral $ i + j)
-
-
--- rgb8todim2
---   :: R.Source r RGB8 => Array r DIM1 RGB8 -> Array U DIM2 Int
--- rgb8todim2 array = R.computeS $ R.traverse array (\(Z :. i) -> (Z :. i :. 3))
---   (\src (Z :. i :. j) -> fromIntegral $ tripleToList (src (Z :. i)) !! j)
-
--- dim2torgb8
---   :: R.Source r Int => Array r DIM2 Int -> Array D DIM1 RGB8
--- dim2torgb8 array = R.traverse array (\(Z :. i :. _) -> (Z :. i))
---   (\src (Z :. i) -> let get j = fromIntegral $ src (Z :. i :. j)
---                         in Triple (get 0) (get 1) (get 2))
-
 ---
 
 rayTrace :: Ray -> RGB8 -> RGB8
@@ -125,7 +108,7 @@ bounce ray object distance = Just $ Ray { _origin = origin, _vector = vector }
 reflect :: Object -> Vec3 -> Triple Double
 object `reflect` vector
   | _reflective object = uncurry fromSphericalCoords $ specular vAngles nAngles
-  | otherwise          = vector
+  | otherwise          = vector -- uncurry fromSphericalCoords $ diffuse nAngles
   where [vAngles, nAngles] = map toSphericalCoords [-vector, getNormal $ _form object]
   --       [thetas, phis] = [map fst angles, map snd angles]
   --       [theta, phi]   = [vectorAngle + 2 * (normalAngle - vectorAngle)
@@ -135,4 +118,9 @@ specular (vTheta, vPhi) (nTheta, nPhi) = (theta, phi)
   where [theta, phi] = [vAngle + 2 * (nAngle - vAngle)
                        | (vAngle, nAngle) <- [(vTheta, nTheta), (vPhi, nPhi)]]
 
+diffuse (nTheta, nPhi) = (nTheta + rand, nPhi + rand)
+  where rand = getStdRandom (randomR (-pi / 2, pi / 2))
+
+rand :: IO Double
+rand = getStdRandom (randomR (-pi / 2, pi / 2))
   

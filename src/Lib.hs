@@ -60,3 +60,21 @@ fromSphericalCoords theta phi = Triple x y z
   where x = sin phi * cos theta
         y = sin phi * sin theta
         z = cos phi
+
+-- simpleRGB :: Array D DIM1 RGB8
+-- simpleRGB = R.fromFunction (Z :. 2) (\(Z :. i) -> let i' = fromIntegral i :: P.Pixel8
+--                                                       in Triple i' (i'+1) (i'+2)) 
+-- simpleDim2 :: Array U DIM2 Int
+-- simpleDim2 = R.computeS $ R.fromFunction (Z :. 2 :. 3) (\(Z :. i :. j) -> fromIntegral $ i + j)
+
+
+-- rgb8todim2
+--   :: R.Source r RGB8 => Array r DIM1 RGB8 -> Array U DIM2 Int
+-- rgb8todim2 array = R.computeS $ R.traverse array (\(Z :. i) -> (Z :. i :. 3))
+--   (\src (Z :. i :. j) -> fromIntegral $ tripleToList (src (Z :. i)) !! j)
+
+-- dim2torgb8
+--   :: R.Source r Int => Array r DIM2 Int -> Array D DIM1 RGB8
+-- dim2torgb8 array = R.traverse array (\(Z :. i :. _) -> (Z :. i))
+--   (\src (Z :. i) -> let get j = fromIntegral $ src (Z :. i :. j)
+--                         in Triple (get 0) (get 1) (get 2))
