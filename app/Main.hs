@@ -19,7 +19,7 @@ import Data.Array.Repa (Array, DIM1, DIM2, U, D, Z (..), (:.)(..), (!))
 import System.Environment (getArgs)
 import System.FilePath (replaceExtension)
 import Object (Object (..), Form (..), distanceFrom, objects, march, getNormal)
-import Triple (Triple (..), RGB8, Vec3, normalize, tripleToTuple)
+import Triple (Triple (..), RGB8, Vec3, normalize, tripleToTuple, tripleToList)
 import Lib (flatten, reshape, Ray (..), mapIndex, black,
             white, toSphericalCoords, fromSphericalCoords)
 import Data.Vector (Vector)
@@ -30,48 +30,28 @@ import Debug.Trace
 
 toImage :: (R.Source r RGB8, S.Shape sh) => Array r sh RGB8 -> P.DynamicImage
 toImage canvas = P.ImageRGB8 $ P.generateImage fromCoords imgHeight imgWidth
-  where fromCoords i j = convert $ canvas' ! (Z :. i :. j)
+  where fromCoords i j = convert $ canvas' ! (Z :. i :. j) * 255
         convert (Triple r g b) = P.PixelRGB8 r g b
         canvas' = reshape [imgHeight, imgWidth] canvas
 
 -- | Paramters
-imgHeight = 200 :: Int --1200
-imgWidth  = 200 :: Int --1200
+imgHeight = 150 :: Int --1200
+imgWidth  = 150 :: Int --1200
 cameraDepth = 10 :: Double
 
 numIters :: Int
-numIters = 1
+numIters = 2
 -- |
 
 main :: IO ()
 main = do (_, canvas) <- mainLoop
           (P.savePngImage "image.png" . toImage) canvas
 
+
 mainLoop :: IO (Int, Array D DIM1 RGB8)
 mainLoop = iterateUntilM ((== numIters) . fst)
-  (\(n, canvas) -> return (n + 1, rayTrace canvas))
+  (\(n, canvas) -> return (n + 1, R.zipWith rayTrace raysFromCam canvas))
   (1, flatten blankCanvas)
-
-
-blankCanvas :: Array D DIM2 RGB8
-blankCanvas = R.fromFunction (Z :. imgHeight :. imgWidth) $ const white
-
----
-
-rayTrace :: Array D DIM1 RGB8 -> Array D DIM1 RGB8
-rayTrace canvas = R.map fst 
-  (until allRaysTerminal updateAll $ R.zipWith (,) canvas rays' :: Array D DIM1 (RGB8, Maybe Ray))
-                                           
-  where allRaysTerminal :: Array D DIM1 (RGB8, Maybe Ray) -> Bool
-        allRaysTerminal = fromJust . (R.foldAllP (&&) True . R.map isNothing) . R.map snd
-
-        updateAll :: Array D DIM1 (RGB8, Maybe Ray) -> Array D DIM1 (RGB8, Maybe Ray)
-        updateAll = R.map . uncurry $ updateIfNonTerminal
-
-        updateIfNonTerminal :: RGB8 -> Maybe Ray -> (RGB8, Maybe Ray)
-        updateIfNonTerminal pixel = maybe (pixel, Nothing) (update pixel)
-
-        rays'   = R.map Just raysFromCam :: Array D DIM1 (Maybe Ray)
 
 
 raysFromCam :: Array D DIM1 Ray
@@ -83,46 +63,76 @@ camToPixelRay (Z :. i :. j) = Ray
   { _origin = pure 0
   , _vector = Triple (fromIntegral i) (fromIntegral j) cameraDepth }
 
+
+blankCanvas :: Array D DIM2 RGB8
+blankCanvas = R.fromFunction (Z :. imgHeight :. imgWidth) $ const white
+
+
+-- simpleRGB :: Array D DIM1 RGB8
+-- simpleRGB = R.fromFunction (Z :. 2) (\(Z :. i) -> let i' = fromIntegral i :: P.Pixel8
+--                                                       in Triple i' (i'+1) (i'+2)) 
+-- simpleDim2 :: Array U DIM2 Int
+-- simpleDim2 = R.computeS $ R.fromFunction (Z :. 2 :. 3) (\(Z :. i :. j) -> fromIntegral $ i + j)
+
+
+-- rgb8todim2
+--   :: R.Source r RGB8 => Array r DIM1 RGB8 -> Array U DIM2 Int
+-- rgb8todim2 array = R.computeS $ R.traverse array (\(Z :. i) -> (Z :. i :. 3))
+--   (\src (Z :. i :. j) -> fromIntegral $ tripleToList (src (Z :. i)) !! j)
+
+-- dim2torgb8
+--   :: R.Source r Int => Array r DIM2 Int -> Array D DIM1 RGB8
+-- dim2torgb8 array = R.traverse array (\(Z :. i :. _) -> (Z :. i))
+--   (\src (Z :. i) -> let get j = fromIntegral $ src (Z :. i :. j)
+--                         in Triple (get 0) (get 1) (get 2))
+
 ---
 
-update :: RGB8 -> Ray -> (RGB8, Maybe Ray)
-update pixel ray = (addColor object' pixel, ray')
-  where (mDistance, object) = closestTo ray
-        object' = fmap (const $ trace (_name object) object) mDistance
-        ray' = do guard . not $ _light object
-                  distance <- mDistance
-                  bounce ray object distance
-
-
-addColor :: Maybe Object -> RGB8 -> RGB8
-addColor object pixel = maybe black color object
-  where color object | _light object = pixel
-                     | otherwise     = _color object
+rayTrace :: Ray -> RGB8 -> RGB8
+rayTrace ray pixel = snd $ until (isNothing . fst) update (Just ray, pixel)
 
 ---
 
-closestTo :: Ray -> (Maybe Double, Object)
-closestTo ray = V.minimumBy (\(d1, _) (d2, _) -> closest d1 d2)
-  $ V.zip distances objects :: (Maybe Double, Object) 
-  where distances = V.map (distanceFrom ray . _form) objects :: Vector (Maybe Double)
+update :: (Maybe Ray, RGB8) -> (Maybe Ray, RGB8)
+update (Nothing, pixel)       = (Nothing, pixel)
+update ((Just ray), pixel)    =
+  case closestTo ray of
+    Nothing                  -> (Nothing, black)
+    Just (object, distance)  -> stopAtLight object
+      where stopAtLight object
+              | _light object = (Nothing, pixel)
+              | otherwise     = (bounce ray object distance, pixel * _color object)
 
 
-closest :: Maybe Double -> Maybe Double -> Ordering
+closestTo :: Ray -> Maybe (Object, Double)
+closestTo ray = V.minimumBy closest $ V.map distanceTo objects
+  where distanceTo object = fmap ((,) object) (distanceFrom ray $ _form object)
+
+
+closest :: Maybe (Object, Double) -> Maybe (Object, Double) -> Ordering
 closest Nothing _ = GT
 closest _ Nothing = LT
-closest d1 d2     = compare d1 d2
+closest (Just (_, d1)) (Just (_, d2)) = compare d1 d2
 
 ---
 
 bounce :: Ray -> Object -> Double -> Maybe Ray
 bounce ray object distance = Just $ Ray { _origin = origin, _vector = vector }
   where origin = march ray distance                             :: Vec3
-        vector = getNormal (_form object) `reflect` _vector ray :: Vec3
+        vector = object `reflect` _vector ray :: Vec3
 
 
-reflect :: Vec3 -> Vec3 -> Triple Double
-normal `reflect` vector = fromSphericalCoords theta phi
-  where angles         = map toSphericalCoords [-vector, normal]
-        [thetas, phis] = [map fst angles, map snd angles]
-        [theta, phi]   = [vectorAngle + 2 * (normalAngle - vectorAngle)
-                         | [vectorAngle, normalAngle] <- [thetas, phis]]
+reflect :: Object -> Vec3 -> Triple Double
+object `reflect` vector
+  | _reflective object = uncurry fromSphericalCoords $ specular vAngles nAngles
+  | otherwise          = vector
+  where [vAngles, nAngles] = map toSphericalCoords [-vector, getNormal $ _form object]
+  --       [thetas, phis] = [map fst angles, map snd angles]
+  --       [theta, phi]   = [vectorAngle + 2 * (normalAngle - vectorAngle)
+  --                        | [vectorAngle, normalAngle] <- [thetas, phis]]
+
+specular (vTheta, vPhi) (nTheta, nPhi) = (theta, phi)
+  where [theta, phi] = [vAngle + 2 * (nAngle - vAngle)
+                       | (vAngle, nAngle) <- [(vTheta, nTheta), (vPhi, nPhi)]]
+
+  

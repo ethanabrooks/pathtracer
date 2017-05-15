@@ -46,8 +46,8 @@ light = Object
   , _reflective  = True
   , _form        = Disk
     { _center = Triple 1 1 0.5
-    , _normal = some_vec
-    , _radius = 1 }
+    , _normal = Triple 0 1 1
+    , _radius = 0.5 }
   }
 
 some_vec = pure 1
@@ -64,7 +64,7 @@ march Ray{ _origin = origin, _vector = vector } distance = origin + fmap (distan
 
 distanceFrom :: Ray -> Form -> Maybe Double
 distanceFrom ray@Ray { _origin = origin, _vector = vector } form =
-  do distance <- traceShowId $ distanceFrom' ray form
+  do distance <- distanceFrom' ray form
      guard $ 0 < distance && distance < 1/0
      return distance
 

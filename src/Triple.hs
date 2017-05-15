@@ -5,6 +5,7 @@ module Triple ( Triple (..)
               , norm2
               , normalize
               , tripleToTuple
+              , tripleToList
               , tSum
               ) where
 
