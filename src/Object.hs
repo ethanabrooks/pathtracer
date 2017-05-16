@@ -6,7 +6,7 @@ module Object ( Object (..)
               , getNormal
               ) where
 
-import Lib (Ray (..), black, white) 
+import Util (Ray (..), black, white)
 import Triple (Triple (..), Vec3, RGB8, norm2, dot)
 import Data.Vector (Vector, fromList)
 import Control.Monad
@@ -40,7 +40,7 @@ infPlane = Object
   }
 
 light = Object
-  { _color       = pure 0
+  { _color       = pure 100
   , _name        = "light"
   , _light       = True
   , _reflective  = True

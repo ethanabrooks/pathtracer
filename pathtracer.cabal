@@ -15,10 +15,11 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Lib, Triple, Object
+  exposed-modules:     Lib, Triple, Object, Util
   build-depends:       base >= 4.7 && < 5
                      , lens
                      , repa
+                     , AC-Angle
                      , vector
                      , random
                      , JuicyPixels
@@ -56,6 +57,7 @@ test-suite pathtracer-test
   build-depends:       base
                      , pathtracer
                      , QuickCheck
+                     , AC-Angle
                      , repa
                      , repa-algorithms
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N

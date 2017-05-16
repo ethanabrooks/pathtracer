@@ -7,6 +7,7 @@ module Triple ( Triple (..)
               , tripleToTuple
               , tripleToList
               , tSum
+              , tAnd
               ) where
 
 import qualified Codec.Picture as P
