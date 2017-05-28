@@ -32,12 +32,10 @@ toImage canvas = P.ImageRGB8 $ P.generateImage fromCoords imgHeight imgWidth
         convert (Triple r g b) = P.PixelRGB8 r g b
         canvas' = reshape [imgHeight, imgWidth] canvas
 
-main :: IO ()
-main = do (_, canvas) <- mainLoop
-          (P.savePngImage "image.png" . toImage) canvas
 
-mainLoop :: IO (Int, Array D DIM1 RGB8)
-mainLoop = iterateUntilM ((== numIters) . fst)
-  (\(n, canvas) -> do let randomSeeds = randomInts (imgHeight * imgWidth) n
-                      return (n + 1, rZipWith3 rayTrace randomSeeds raysFromCam canvas))
-  (1, flatten blankCanvas)
+main :: IO ()
+main = (P.savePngImage "image.png" . toImage) canvas
+    where (_, canvas) = until ((== numIters) . fst) 
+            (\(n, canvas) -> let gens = randomGens (imgHeight * imgWidth) n
+                             in  (n + 1, rZipWith3 rayTrace gens raysFromCam canvas))
+            (1, flatten blankCanvas)

@@ -30,22 +30,22 @@ data Form = Disk
 
 
 infPlane = Object 
-  { _color      = black
+  { _color      = pure 100
   , _name       = "infinite plane"
   , _light      = False
-  , _reflective = True
+  , _reflective = False
   , _form       = InfinitePlane
-             { _normal = some_vec
-             , _point  = some_vec }
+             { _normal = Triple 0 0 1
+             , _point  = Triple 0 0 20 }
   }
 
 light = Object
-  { _color       = pure 100
+  { _color       = pure 255
   , _name        = "light"
   , _light       = True
   , _reflective  = True
   , _form        = Disk
-    { _center = Triple 0 0.2 0.5
+    { _center = Triple 0.3 0.1 0.5
     , _normal = Triple 0 1 1
     , _radius = 0.2 }
   }
@@ -61,10 +61,10 @@ disk = Object
     , _radius = 0.3 }
   }
 
-some_vec = pure 1
+-- some_vec = pure 1
 
 objects :: Vector Object
-objects = fromList [light, disk] 
+objects = fromList [light, infPlane] 
 
 ---
  
@@ -79,6 +79,7 @@ distanceFrom ray@Ray { _origin = origin, _vector = vector } form =
      guard $ 0 < distance && distance < 1/0
      return distance
 
+distanceFrom' :: Ray -> Form -> Maybe Double
 distanceFrom' ray@Ray { _origin = origin, _vector = vector } form =
   case form of
     Disk { _center = center, _normal = normal, _radius = radius }  -> do
@@ -100,8 +101,6 @@ getNormal form = _normal form
 
  {-
 TODO:
-write tests
-add diffuse reflectivity
 add spheres
 -}
         
