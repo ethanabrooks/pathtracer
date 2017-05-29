@@ -20,6 +20,7 @@ import System.FilePath (replaceExtension)
 import Object (Object (..), Form (..), distanceFrom, objects, march, getNormal)
 import Triple (Triple (..), RGB8, Vec3, normalize, tripleToTuple, tripleToList)
 import Lib 
+import Util 
 import Control.Monad
 import Control.Monad.Loops
 import Debug.Trace

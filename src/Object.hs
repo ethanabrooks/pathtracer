@@ -1,13 +1,14 @@
 module Object ( Object (..)
               , Form (..)
               , distanceFrom
+              , distanceFrom'
               , objects
               , march
               , getNormal
               ) where
 
-import Util (Ray (..), black, white)
-import Triple (Triple (..), Vec3, RGB8, norm2, dot)
+import Util
+import Triple
 import Data.Vector (Vector, fromList)
 import Control.Monad
 import Debug.Trace
@@ -24,6 +25,11 @@ data Form = Disk
             { _center :: Vec3
             , _normal :: Vec3
             , _radius :: Double }
+          -- | Rectangle
+          --   { _center :: Vec3
+          --   , _normal :: Vec3
+          --   , _height :: Double
+          --   , _width  :: Double }
           | InfinitePlane
             { _normal :: Vec3
             , _point  :: Vec3 }
@@ -33,10 +39,20 @@ infPlane = Object
   { _color      = pure 100
   , _name       = "infinite plane"
   , _light      = False
-  , _reflective = False
+  , _reflective = True
+  , _form       = InfinitePlane
+             { _normal = Triple 0 0 (-1)
+             , _point  = Triple 0 0 10 }
+  }
+
+infLight = Object 
+  { _color      = Triple 255 0 0
+  , _name       = "infinite light"
+  , _light      = True
+  , _reflective = True
   , _form       = InfinitePlane
              { _normal = Triple 0 0 1
-             , _point  = Triple 0 0 20 }
+             , _point  = Triple 0 0 (-10) }
   }
 
 light = Object
@@ -45,9 +61,9 @@ light = Object
   , _light       = True
   , _reflective  = True
   , _form        = Disk
-    { _center = Triple 0.3 0.1 0.5
-    , _normal = Triple 0 1 1
-    , _radius = 0.2 }
+    { _center = Triple 0 0 (10)
+    , _normal = Triple 0 0 (-1)
+    , _radius = 2000 }
   }
 
 disk = Object
@@ -56,7 +72,7 @@ disk = Object
   , _light       = False
   , _reflective  = False
   , _form        = Disk
-    { _center = Triple 0 1 0.5
+    { _center = Triple 5 1 0.5
     , _normal = Triple 1 0 1
     , _radius = 0.3 }
   }
@@ -64,33 +80,42 @@ disk = Object
 -- some_vec = pure 1
 
 objects :: Vector Object
-objects = fromList [light, infPlane] 
+objects = fromList [light] 
 
 ---
  
 march :: Ray -> Double -> Vec3
-march Ray{ _origin = origin, _vector = vector } distance = origin + fmap (distance *) vector
+march (Ray origin vector) distance = origin + fmap (distance *) vector
 
 ---
 
 distanceFrom :: Ray -> Form -> Maybe Double
-distanceFrom ray@Ray { _origin = origin, _vector = vector } form =
+distanceFrom ray@(Ray origin vector) form =
   do distance <- distanceFrom' ray form
      guard $ 0 < distance && distance < 1/0
      return distance
 
+
 distanceFrom' :: Ray -> Form -> Maybe Double
-distanceFrom' ray@Ray { _origin = origin, _vector = vector } form =
+distanceFrom' ray@(Ray origin vector) form =
   case form of
-    Disk { _center = center, _normal = normal, _radius = radius }  -> do
-      distanceFromOrigin    <- distanceFrom ray
-                               $ InfinitePlane { _point = center , _normal = normal }
+    Disk center normal radius -> do
+      distanceFromOrigin    <- distanceFrom ray $ InfinitePlane normal center
       let point              = march ray distanceFromOrigin
       let distanceFromCenter = norm2 $ point - center
       guard $ distanceFromCenter < radius
       return distanceFromOrigin
-    InfinitePlane { _point = point, _normal = normal } ->
-        Just $ (point - origin) `dot` normal / vector `dot` normal
+    -- Rectangle center normal height width -> do
+    --   distanceFromOrigin    <- distanceFrom ray $ InfinitePlane center normal
+    --   let point              = march ray distanceFromOrigin
+    --   guard
+     
+
+      
+    InfinitePlane normal point ->
+        Just $ ((point - origin) `dot` normal) / (vector `dot` normal)
+
+        -- Just $ (((traceShowId $ trace "point" point) - (traceShowId $ trace "origin" origin)) `dot` normal) / ((traceShowId $ trace "vector" vector) `dot` (traceShowId $ trace "normal" normal))
 
 ---
 

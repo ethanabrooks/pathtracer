@@ -1,9 +1,10 @@
 module Triple ( Triple (..)
               , Vec3
-              , RGB8
               , dot
+              , cross
               , norm2
               , normalize
+              , tupleToTriple
               , tripleToTuple
               , tripleToList
               , tSum
@@ -16,10 +17,12 @@ import Test.QuickCheck (Arbitrary, arbitrary)
 
 data Triple a = Triple a a a
 type Vec3 = Triple Double
-type RGB8 = Triple P.Pixel8
+
+tupleToTriple :: (t, t, t) -> Triple t
+tupleToTriple (x, y, z) = Triple x y z
 
 tripleToTuple :: Triple t -> (t, t, t)
-tripleToTuple (Triple a1 a2 a3) = (a1, a2, a3)
+tripleToTuple (Triple x y z) = (x, y, z)
 
 tripleToList :: Triple t -> [t]
 tripleToList (Triple a1 a2 a3) = [a1, a2, a3]
@@ -27,9 +30,17 @@ tripleToList (Triple a1 a2 a3) = [a1, a2, a3]
 tSum :: Num a => Triple a -> a
 tSum = sum . tripleToList
 
+tAnd :: Triple Bool -> Bool
 tAnd = and . tripleToList
 
+dot :: Num a => Triple a -> Triple a -> a
 dot a b = tSum $ a * b 
+
+cross :: Num a => Triple a -> Triple a -> Triple a
+cross (Triple x1 y1 z1) (Triple x2 y2 z2) = Triple x y z
+  where x = y1 * z2 - z1 * y2
+        y = z1 * x2 - x1 * z2
+        z = x1 * y2 - y1 * x2
 
 norm2 :: Floating a => Triple a -> a
 norm2 (Triple x y z) = sqrt $ x^2 + y^2 + z^2
@@ -59,6 +70,9 @@ instance Num a => Num (Triple a) where
   fromInteger = fmap fromInteger . pure
   negate = fmap negate
 
+instance Fractional a => Fractional (Triple a) where
+  fromRational = fmap fromRational . pure
+  (/) = liftA2 (/)
 
 instance Arbitrary a => Arbitrary (Triple a) where
   arbitrary = do a1 <- arbitrary
