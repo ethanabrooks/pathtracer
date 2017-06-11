@@ -5,7 +5,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module Main ( main
-            , RGB8
+            , Vec3
             ) where
 
 import qualified Codec.Picture.Types          as M
@@ -17,8 +17,8 @@ import qualified Codec.Picture                as P
 import Data.Array.Repa (Array, DIM1, DIM2, U, D, Z (..), (:.)(..), (!))
 import System.Environment (getArgs)
 import System.FilePath (replaceExtension)
-import Object (Object (..), Form (..), distanceFrom, objects, march, getNormal)
-import Triple (Triple (..), RGB8, Vec3, normalize, tripleToTuple, tripleToList)
+import Object
+import Triple
 import Lib 
 import Util 
 import Control.Monad
@@ -27,9 +27,9 @@ import Debug.Trace
 import System.Random
 
 
-toImage :: (R.Source r RGB8, S.Shape sh) => Array r sh RGB8 -> P.DynamicImage
+toImage :: (R.Source r Vec3, S.Shape sh) => Array r sh Vec3 -> P.DynamicImage
 toImage canvas = P.ImageRGB8 $ P.generateImage fromCoords imgHeight imgWidth
-  where fromCoords i j = convert $ canvas' ! (Z :. i :. j)
+  where fromCoords i j = convert . fmap round . (fmap (min 255)) $ canvas' ! (Z :. i :. j)
         convert (Triple r g b) = P.PixelRGB8 r g b
         canvas' = reshape [imgHeight, imgWidth] canvas
 
@@ -38,5 +38,5 @@ main :: IO ()
 main = (P.savePngImage "image.png" . toImage) canvas
     where (_, canvas) = until ((== numIters) . fst) 
             (\(n, canvas) -> let gens = randomGens (imgHeight * imgWidth) n
-                             in  (n + 1, rZipWith3 rayTrace gens raysFromCam canvas))
-            (1, flatten blankCanvas)
+                             in  (n + 1, rZipWith3 (rayTrace n) gens raysFromCam canvas))
+            (0, flatten blankCanvas)

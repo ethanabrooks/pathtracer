@@ -147,7 +147,7 @@ propDistanceFrom' origin vector normal point =
   (intersection - point) `dot` normal ~= 0
   where intersection = march ray distance
         ray = Ray origin vector
-        Just distance = distanceFrom' ray $ InfinitePlane point normal
+        Just distance = distanceFrom' ray $ InfinitePlane normal point
 
 
 main = do 

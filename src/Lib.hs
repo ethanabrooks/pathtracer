@@ -13,9 +13,9 @@ module Lib ( imgHeight
            , specular
            ) where
 
-import qualified Data.Array.Repa     as R -- for Repa
+import qualified Data.Array.Repa       as R -- for Repa
 import qualified Data.Array.Repa.Shape as S
-import qualified Data.Vector                  as V
+import qualified Data.Vector           as V
 import Util
 import Object
 import Triple
@@ -26,13 +26,14 @@ import Data.Maybe
 import Data.Angle
 import Debug.Trace
 
+
 -- | Paramters
 imgHeight = 100 :: Int --1200
 imgWidth  = 100 :: Int --1200
-cameraDepth = 10 :: Double
+cameraDepth = 100 :: Double
 
 numIters :: Int
-numIters = 2
+numIters = 1000
 -- |
 
 
@@ -55,40 +56,44 @@ raysFromCam = flatten $ mapIndex camToPixelRay blankCanvas
 
 camToPixelRay :: DIM2 -> Ray
 camToPixelRay (Z :. i :. j) = Ray
-  { _origin = pure 0
-  , _vector = Triple (fromIntegral i) (fromIntegral j) cameraDepth }
+  { _origin = Triple 0 0 (-cameraDepth)
+  , _vector = normalize $ Triple i' j' cameraDepth }
+  where i' = fromIntegral i - fromIntegral imgHeight / 2
+        j' = fromIntegral j - fromIntegral imgWidth / 2
 
 
-blankCanvas :: Array D DIM2 RGB8
-blankCanvas = R.fromFunction (Z :. imgHeight :. imgWidth) $ const white
-
----
-
-rayTrace :: StdGen -> Ray -> RGB8 -> RGB8
-rayTrace gen ray pixel = pixel'
-  where (_, _, pixel') = until (isNothing . (\(_, ray, _) -> ray)) update (gen, Just ray, pixel)
+blankCanvas :: Array D DIM2 Vec3
+blankCanvas = R.fromFunction (Z :. imgHeight :. imgWidth) $ const black
 
 ---
 
-update :: (StdGen, Maybe Ray, RGB8) -> (StdGen, Maybe Ray, RGB8)
-update (gen, Nothing, pixel)  = (gen, Nothing, pixel)
+rayTrace :: Int -> StdGen -> Ray -> Vec3 -> Vec3
+rayTrace n gen ray pixel = pixel + pixel'
+  where (_, _, pixel') = until (isNothing . (\(_, ray, _) -> ray)) update (gen, Just ray, white)
+        x = fromIntegral n
+
+---
+
+update :: (StdGen, Maybe Ray, Vec3) -> (StdGen, Maybe Ray, Vec3)
+update (gen, Nothing, pixel)  = (gen, Nothing, pixel) 
 update (gen, Just ray, pixel) =
   case closestTo ray of
-    -- Nothing                  -> (gen, Nothing, black)
-    Nothing                  -> trace "Nothing" (gen, Nothing, black)
+    Nothing                  -> (gen, Nothing, black)
     Just (object, distance)  -> stopAtLight
-      -- where stopAtLight | _light object = ( gen, Nothing, pixel * _color object )
-      where stopAtLight | _light object = trace "Light" ( gen, Nothing, traceShowId $ pixel * (traceShowId $ _color object) )
-                        -- | otherwise     = ( snd (random gen :: (Int, StdGen))
-                        | otherwise     = trace "?" ( snd (random gen :: (Int, StdGen))
-                                          , Just $ bounce gen ray object distance
-                                          , pixel * _color object )
-
+      where stopAtLight | _emittance object > 0 = ( gen, Nothing
+                                                  , fmap (_emittance object *) pixel )
+                        | otherwise             = ( snd (random gen :: (Int, StdGen))
+                                                  , Just $ bounce gen ray object distance
+                                                  , fmap (/ 255) $ pixel * _color object )
+      -- ("\n" ++ _name object
+      --                                  ++ ":\npixel-color=" ++ (show pixel)
+      --                                  ++ "\nemmitance=" ++ (show $ _emittance object)
+      --                                  ++ "\nobject-color=" ++ (show $ _color object)
+      --                                  ++ "\ncombination=" ++ (show $ (\(_, _, c) -> c) stopAtLight))
 
 closestTo :: Ray -> Maybe (Object, Double)
 closestTo ray = V.minimumBy closest $ V.map distanceTo objects
-  where distanceTo object = let x = fmap (object,) (distanceFrom ray $ _form object)
-                                in trace (show $ maybe "No object" (_name . fst) x) x
+  where distanceTo object = fmap (object,) (distanceFrom ray $ _form object)
 
 
 closest :: Maybe (Object, Double) -> Maybe (Object, Double) -> Ordering
@@ -112,7 +117,7 @@ reflect gen object vector
 
 
 specular :: StdGen -> Double -> Vec3 -> Vec3 -> Vec3
-specular gen noise vector normal = vector'
+specular gen noise vector normal = rotateRel theta phi vector'
   where normal'          = normalize normal
         projection       = fmap (vector `dot` normal' *) normal'
         vector'          = vector + (fmap ((-2) *) projection)
@@ -121,9 +126,13 @@ specular gen noise vector normal = vector'
         -- cause rays to penetrate the surface of the object
         angleWithSurface = (Degrees 90) - (arccosine . abs $ normal' `dot` normalize vector)
         Degrees maxTheta = min angleWithSurface $ Degrees noise 
-        [theta, phi]     = map (randomAngle gen) [(0, maxTheta), (0, 360)]
+        [theta, phi] = map Degrees . fst $ randomRangeList gen [(0, maxTheta), (0, 380)]
         
 
 diffuse :: StdGen -> Vec3 -> Vec3 -> Vec3 
-diffuse gen vector normal = rotateRel theta phi vector
-  where [theta, phi] = map (randomAngle gen) [(0, 90), (0, 360)]
+diffuse gen _ normal = rotateRel theta phi normal
+  where [theta, phi] = map Degrees . fst $ randomRangeList gen [(0, 90), (0, 380)]
+        -- (phi, _)      = randomAngle gen' (0, 380)
+  -- where [theta, phi] = map (randomAngle gen) [(0, 90), (0, 360)]
+  -- TODO!!!
+  -- where [theta, phi] = map (randomAngle gen) [(90, 180), (0, 360)]

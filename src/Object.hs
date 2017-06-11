@@ -2,9 +2,9 @@ module Object ( Object (..)
               , Form (..)
               , distanceFrom
               , distanceFrom'
-              , objects
               , march
               , getNormal
+              , objects
               ) where
 
 import Util
@@ -14,8 +14,8 @@ import Control.Monad
 import Debug.Trace
 
 
-data Object = Object { _color      :: RGB8
-                     , _light      :: Bool
+data Object = Object { _color      :: Vec3
+                     , _emittance  :: Double
                      , _reflective :: Bool
                      , _form       :: Form
                      , _name       :: String }
@@ -25,30 +25,30 @@ data Form = Disk
             { _center :: Vec3
             , _normal :: Vec3
             , _radius :: Double }
+          | InfinitePlane
+            { _normal :: Vec3
+            , _point  :: Vec3 }
           -- | Rectangle
           --   { _center :: Vec3
           --   , _normal :: Vec3
           --   , _height :: Double
           --   , _width  :: Double }
-          | InfinitePlane
-            { _normal :: Vec3
-            , _point  :: Vec3 }
 
 
 infPlane = Object 
-  { _color      = pure 100
+  { _color      = Triple 255 0 0 
   , _name       = "infinite plane"
-  , _light      = False
-  , _reflective = True
+  , _emittance  = 0
+  , _reflective = False
   , _form       = InfinitePlane
              { _normal = Triple 0 0 (-1)
-             , _point  = Triple 0 0 10 }
+             , _point  = Triple 0 0 0 }
   }
 
 infLight = Object 
-  { _color      = Triple 255 0 0
+  { _color      = pure 255
   , _name       = "infinite light"
-  , _light      = True
+  , _emittance  = 5
   , _reflective = True
   , _form       = InfinitePlane
              { _normal = Triple 0 0 1
@@ -58,29 +58,39 @@ infLight = Object
 light = Object
   { _color       = pure 255
   , _name        = "light"
-  , _light       = True
+  , _emittance   = 2
   , _reflective  = True
   , _form        = Disk
-    { _center = Triple 0 0 (10)
-    , _normal = Triple 0 0 (-1)
-    , _radius = 2000 }
+    { _center = Triple (10) (30) (-20)
+    , _normal = Triple 0 (0) (1)
+    , _radius = 10 }
   }
 
-disk = Object
-  { _color       = pure 100
+disk1 = Object
+  { _color       = Triple 55 100 255
   , _name        = "disk"
-  , _light       = False
+  , _emittance   = 0
   , _reflective  = False
   , _form        = Disk
-    { _center = Triple 5 1 0.5
-    , _normal = Triple 1 0 1
-    , _radius = 0.3 }
+    { _center = Triple 0 0 0
+    , _normal = Triple 0 0 (-1)
+    , _radius = 30 }
   }
 
--- some_vec = pure 1
+disk2 = Object
+  { _color       = Triple 0 255 0
+  , _name        = "disk"
+  , _emittance   = 0
+  , _reflective  = False
+  , _form        = Disk
+    { _center = Triple 0 0 0
+    , _normal = Triple 0 0 (-1)
+    , _radius = 600 }
+  }
+
 
 objects :: Vector Object
-objects = fromList [light] 
+objects = fromList [light, disk1]
 
 ---
  
