@@ -149,6 +149,14 @@ propDistanceFrom' origin vector normal point =
         ray = Ray origin vector
         Just distance = distanceFrom' ray $ InfinitePlane normal point
 
+propRandomRangeList :: Float -> Float -> Int -> Bool
+propRandomRangeList v1 v2 seed =
+  randomRangeList gen [(0, 100), (0, 100)] == ([o1, o2], gen'')
+  where gen = mkStdGen seed
+        (o1, gen') = randomR (0, 100) gen
+        (o2, gen'')    = randomR (0, 100) gen'
+                                                 
+  
 
 main = do 
   putStrLn "propCross1"

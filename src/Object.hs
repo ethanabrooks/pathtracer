@@ -90,7 +90,7 @@ disk2 = Object
 
 
 objects :: Vector Object
-objects = fromList [light, disk1]
+objects = fromList [light, infPlane]
 
 ---
  

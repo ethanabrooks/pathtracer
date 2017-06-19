@@ -85,11 +85,6 @@ update (gen, Just ray, pixel) =
                         | otherwise             = ( snd (random gen :: (Int, StdGen))
                                                   , Just $ bounce gen ray object distance
                                                   , fmap (/ 255) $ pixel * _color object )
-      -- ("\n" ++ _name object
-      --                                  ++ ":\npixel-color=" ++ (show pixel)
-      --                                  ++ "\nemmitance=" ++ (show $ _emittance object)
-      --                                  ++ "\nobject-color=" ++ (show $ _color object)
-      --                                  ++ "\ncombination=" ++ (show $ (\(_, _, c) -> c) stopAtLight))
 
 closestTo :: Ray -> Maybe (Object, Double)
 closestTo ray = V.minimumBy closest $ V.map distanceTo objects
@@ -132,7 +127,6 @@ specular gen noise vector normal = rotateRel theta phi vector'
 diffuse :: StdGen -> Vec3 -> Vec3 -> Vec3 
 diffuse gen _ normal = rotateRel theta phi normal
   where [theta, phi] = map Degrees . fst $ randomRangeList gen [(0, 90), (0, 380)]
-        -- (phi, _)      = randomAngle gen' (0, 380)
-  -- where [theta, phi] = map (randomAngle gen) [(0, 90), (0, 360)]
-  -- TODO!!!
-  -- where [theta, phi] = map (randomAngle gen) [(90, 180), (0, 360)]
+  --where (theta', gen') = randomR (0, 90) gen
+        --(phi', _) = randomR (0, 380) gen
+        --[theta, phi] = map Degrees [theta', phi']
