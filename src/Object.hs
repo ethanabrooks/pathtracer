@@ -83,14 +83,24 @@ disk2 = Object
   , _emittance   = 0
   , _reflective  = False
   , _form        = Disk
-    { _center = Triple 0 0 0
-    , _normal = Triple 0 0 (-1)
+    { _center = Triple 0 0 10
+    , _normal = Triple 1 0 (-1)
     , _radius = 600 }
+  }
+
+infPlane2 = Object
+  { _color       = Triple 0 255 0
+  , _name        = "disk"
+  , _emittance   = 0
+  , _reflective  = False
+  , _form        = InfinitePlane
+    { _point = Triple 0 0 10
+    , _normal = Triple 0.5 0 (-1) }
   }
 
 
 objects :: Vector Object
-objects = fromList [light, infPlane]
+objects = fromList [light, infPlane2]
 
 ---
  

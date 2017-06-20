@@ -34,7 +34,11 @@ library
 executable pathtracer-exe
   hs-source-dirs:      app
   main-is:             Main.hs
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  ghc-options:
+                     -O4
+                     -threaded
+                     -rtsopts
+                     "-with-rtsopts=-N4"
   build-depends:       base
                      , pathtracer
                      , random

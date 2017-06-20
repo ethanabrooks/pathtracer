@@ -131,8 +131,9 @@ randomAngle gen range = (Degrees angle, gen')
   where (angle, gen') = randomR range gen
 
 randomRangeList :: (RandomGen b, Random a, Show a) => b -> [(a, a)] -> ([a], b)
-randomRangeList gen0 ranges = foldl (\(xs, gen) range -> let (x, gen') = randomR range gen
-                                                         in (x:xs, gen'))
-                                    ([], gen0) ranges
+randomRangeList firstGen ranges = (reverse randoms, lastGen)
+  where (randoms, lastGen) =  foldl (\(xs, gen) range -> let (x, gen') = randomR range gen
+                                                       in (x:xs, gen'))
+                            ([], firstGen) ranges
                                    
 

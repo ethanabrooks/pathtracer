@@ -28,8 +28,8 @@ import Debug.Trace
 
 
 -- | Paramters
-imgHeight = 100 :: Int --1200
-imgWidth  = 100 :: Int --1200
+imgHeight = 300 :: Int --1200
+imgWidth  = 300 :: Int --1200
 cameraDepth = 100 :: Double
 
 numIters :: Int
