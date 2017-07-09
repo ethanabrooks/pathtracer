@@ -19,33 +19,42 @@ data Triple a = Triple a a a
 type Vec3 = Triple Double
 
 tupleToTriple :: (t, t, t) -> Triple t
+{-# INLINE tupleToTriple #-}
 tupleToTriple (x, y, z) = Triple x y z
 
 tripleToTuple :: Triple t -> (t, t, t)
+{-# INLINE tripleToTuple #-}
 tripleToTuple (Triple x y z) = (x, y, z)
 
 tripleToList :: Triple t -> [t]
+{-# INLINE tripleToList #-}
 tripleToList (Triple a1 a2 a3) = [a1, a2, a3]
 
 tSum :: Num a => Triple a -> a
+{-# INLINE tSum #-}
 tSum = sum . tripleToList
 
 tAnd :: Triple Bool -> Bool
+{-# INLINE tAnd #-}
 tAnd = and . tripleToList
 
 dot :: Num a => Triple a -> Triple a -> a
+{-# INLINE dot #-}
 dot a b = tSum $ a * b 
 
 cross :: Num a => Triple a -> Triple a -> Triple a
+{-# INLINE cross #-}
 cross (Triple x1 y1 z1) (Triple x2 y2 z2) = Triple x y z
   where x = y1 * z2 - z1 * y2
         y = z1 * x2 - x1 * z2
         z = x1 * y2 - y1 * x2
 
 norm2 :: Floating a => Triple a -> a
+{-# INLINE norm2 #-}
 norm2 (Triple x y z) = sqrt $ x^2 + y^2 + z^2
 
 normalize :: Vec3 -> Vec3
+{-# INLINE normalize #-}
 normalize vector = fmap (/ norm) vector
   where norm = max (10**(-6)) $ norm2 vector
 

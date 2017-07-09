@@ -95,7 +95,7 @@ infPlane2 = Object
   , _reflective  = False
   , _form        = InfinitePlane
     { _point = Triple 0 0 10
-    , _normal = Triple 0.5 0 (-1) }
+    , _normal = Triple 1 0 (-1) }
   }
 
 
@@ -134,8 +134,6 @@ distanceFrom' ray@(Ray origin vector) form =
       
     InfinitePlane normal point ->
         Just $ ((point - origin) `dot` normal) / (vector `dot` normal)
-
-        -- Just $ (((traceShowId $ trace "point" point) - (traceShowId $ trace "origin" origin)) `dot` normal) / ((traceShowId $ trace "vector" vector) `dot` (traceShowId $ trace "normal" normal))
 
 ---
 

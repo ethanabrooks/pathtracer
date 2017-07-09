@@ -38,7 +38,7 @@ executable pathtracer-exe
                      -O4
                      -threaded
                      -rtsopts
-                     "-with-rtsopts=-N4"
+                     "-with-rtsopts=-N"
   build-depends:       base
                      , pathtracer
                      , random

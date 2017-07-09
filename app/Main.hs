@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeOperators   #-}
@@ -36,7 +37,6 @@ toImage canvas = P.ImageRGB8 $ P.generateImage fromCoords imgHeight imgWidth
 
 main :: IO ()
 main = (P.savePngImage "image.png" . toImage) canvas
-    where (_, canvas) = until ((== numIters) . fst) 
-            (\(n, canvas) -> let gens = randomGens (imgHeight * imgWidth) n
-                             in  (n + 1, rZipWith3 (rayTrace n) gens raysFromCam canvas))
-            (0, flatten blankCanvas)
+    where (_, canvas) = until ((== numIters) . fst)
+                        (uncurry mainLoop)
+                        (0, flatten blackCanvas)
