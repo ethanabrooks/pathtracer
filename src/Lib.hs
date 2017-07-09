@@ -1,10 +1,14 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE BangPatterns #-}
 module Lib ( imgHeight
            , imgWidth
            , numIters
            , raysFromCam
-           , blankCanvas
+           , blackCanvas
+           , mainLoop
+           , mainLoop'
            , rZipWith3
            , randomGens
            , rayTrace
@@ -19,7 +23,7 @@ import qualified Data.Vector           as V
 import Util
 import Object
 import Triple
-import Data.Array.Repa (Array, DIM1, DIM2, U, D, Z (..), (:.)(..), (!))
+import Data.Array.Repa (Array, DIM1, DIM2, U, D, Z (..), (:.)(..), (!), (+^))
 import Data.Vector (Vector)
 import System.Random
 import Data.Maybe
@@ -27,13 +31,11 @@ import Data.Angle
 import Debug.Trace
 
 
--- | Paramters
-imgHeight = 300 :: Int --1200
-imgWidth  = 300 :: Int --1200
+-- | Parameters
+imgHeight = 30 :: Int --1200
+imgWidth  = 30 :: Int --1200
 cameraDepth = 100 :: Double
-
-numIters :: Int
-numIters = 1000
+numIters = 10 :: Int
 -- |
 
 
@@ -51,7 +53,7 @@ randomGens len = R.map mkStdGen . R.fromListUnboxed (Z :. len) . (take len . ran
 
 
 raysFromCam :: Array D DIM1 Ray
-raysFromCam = flatten $ mapIndex camToPixelRay blankCanvas
+raysFromCam = flatten $ mapIndex camToPixelRay blackCanvas
 
 
 camToPixelRay :: DIM2 -> Ray
@@ -62,21 +64,40 @@ camToPixelRay (Z :. i :. j) = Ray
         j' = fromIntegral j - fromIntegral imgWidth / 2
 
 
-blankCanvas :: Array D DIM2 Vec3
-blankCanvas = R.fromFunction (Z :. imgHeight :. imgWidth) $ const black
+blackCanvas :: Array D DIM2 Vec3
+blackCanvas = R.fromFunction (Z :. imgHeight :. imgWidth) $ const black
+
+whiteCanvas :: Array D DIM1 Vec3
+whiteCanvas = R.fromFunction (Z :. imgHeight * imgWidth) $ const black
+
+
+mainLoop :: Int -> Array D DIM1 Vec3 -> (Int, Array D DIM1 Vec3)
+mainLoop n canvas = (n + 1, canvas +^ rZipWith3 rayTrace gens raysFromCam whiteCanvas)
+    where gens = randomGens (imgHeight * imgWidth) n
+
+mainLoop' :: Int -> Array D DIM1 Vec3 -> Array D DIM1 Vec3
+mainLoop' 0 canvas = canvas
+mainLoop' n canvas = mainLoop' (n - 1) (canvas +^ rZipWith3 rayTrace gens raysFromCam whiteCanvas)
+    where gens = randomGens (imgHeight * imgWidth) n
+
 
 ---
 
-rayTrace :: Int -> StdGen -> Ray -> Vec3 -> Vec3
-rayTrace n gen ray pixel = pixel + pixel'
+rayTrace' :: StdGen -> Ray -> Vec3 -> Vec3
+rayTrace' gen ray pixel = pixel'
   where (_, _, pixel') = until (isNothing . (\(_, ray, _) -> ray)) update (gen, Just ray, white)
-        x = fromIntegral n
+
+rayTrace :: StdGen -> Ray -> Vec3 -> Vec3
+rayTrace gen ray pixel =
+  case update (gen, Just ray, pixel) of
+    (_, Nothing, pixel') -> pixel'
+    (gen', Just ray', pixel') -> rayTrace' gen' ray' pixel'
 
 ---
 
 update :: (StdGen, Maybe Ray, Vec3) -> (StdGen, Maybe Ray, Vec3)
-update (gen, Nothing, pixel)  = (gen, Nothing, pixel) 
-update (gen, Just ray, pixel) =
+update (gen, Nothing, !pixel)  = (gen, Nothing, pixel) 
+update (gen, Just !ray, !pixel) =
   case closestTo ray of
     Nothing                  -> (gen, Nothing, black)
     Just (object, distance)  -> stopAtLight
@@ -127,6 +148,6 @@ specular gen noise vector normal = rotateRel theta phi vector'
 diffuse :: StdGen -> Vec3 -> Vec3 -> Vec3 
 diffuse gen _ normal = rotateRel theta phi normal
   where [theta, phi] = map Degrees . fst $ randomRangeList gen [(0, 90), (0, 380)]
-  --where (theta', gen') = randomR (0, 90) gen
-        --(phi', _) = randomR (0, 380) gen
-        --[theta, phi] = map Degrees [theta', phi']
+  -- where (theta', gen') = randomR (0, 90) gen
+  --       (phi', _) = randomR (0, 380) gen
+  --       [theta, phi] = map Degrees [theta', phi']
