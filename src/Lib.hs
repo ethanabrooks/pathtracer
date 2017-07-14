@@ -32,10 +32,10 @@ import Debug.Trace
 
 
 -- | Parameters
-imgHeight = 30 :: Int --1200
-imgWidth  = 30 :: Int --1200
-cameraDepth = 100 :: Double
-numIters = 10 :: Int
+imgHeight = 29 :: Int --1200
+imgWidth  = 29 :: Int --1200
+cameraDepth = 2 :: Double
+numIters = 30 :: Int
 -- |
 
 
@@ -147,7 +147,7 @@ specular gen noise vector normal = rotateRel theta phi vector'
 
 diffuse :: StdGen -> Vec3 -> Vec3 -> Vec3 
 diffuse gen _ normal = rotateRel theta phi normal
-  where [theta, phi] = map Degrees . fst $ randomRangeList gen [(0, 90), (0, 380)]
+  where [theta, phi] = map Degrees [0, 0] -- . fst $ randomRangeList gen [(0, 0), (0, 380)]
   -- where (theta', gen') = randomR (0, 90) gen
   --       (phi', _) = randomR (0, 380) gen
   --       [theta, phi] = map Degrees [theta', phi']

@@ -63,7 +63,7 @@ light = Object
   , _form        = Disk
     { _center = Triple (10) (30) (-20)
     , _normal = Triple 0 (0) (1)
-    , _radius = 10 }
+    , _radius = 100 }
   }
 
 disk1 = Object
@@ -95,7 +95,7 @@ infPlane2 = Object
   , _reflective  = False
   , _form        = InfinitePlane
     { _point = Triple 0 0 10
-    , _normal = Triple 1 0 (-1) }
+    , _normal = Triple 0 0 (-1) }
   }
 
 

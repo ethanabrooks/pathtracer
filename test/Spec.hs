@@ -12,7 +12,7 @@ import System.Random
 import Debug.Trace
 
 tolerance :: Double
-tolerance = 1e-11
+tolerance = 1e-9
 
 (~=) :: Double -> Double -> Bool
 (~=) = aeq tolerance
@@ -56,6 +56,14 @@ sphericalRelations x y z x' y' theta phi =
   z ~= cosine theta &&
   (((x**2) + (y**2)) / (z**2)) ~= ((tangent theta)**2)
 
+propToSpherical1 :: Vec3 -> T.Property
+propToSpherical1 vec3 = not (norm2 vec3 ~= 0) ==>
+  sphericalRelations x y z x' y' theta  phi
+  where Triple x  y  z = normalize vec3
+        Triple x' y' _ = normalize $ Triple x y 0
+        (theta, phi) = toSphericalCoords vec3
+
+
 
 propFromSpherical1 :: Double -> Double -> T.Property
 propFromSpherical1 theta phi = all ((0, False, 180, True) `contains`) [theta, phi] ==>
@@ -68,14 +76,6 @@ propFromSpherical1 theta phi = all ((0, False, 180, True) `contains`) [theta, ph
 propFromSpherical2 :: Bool
 propFromSpherical2 =
   fromSphericalCoords 0 0 ^~= Triple 0 0 1
-
-
-propToSpherical1 :: Vec3 -> T.Property
-propToSpherical1 vec3 = not (norm2 vec3 ~= 0) ==>
-  sphericalRelations x y z x' y' theta  phi
-  where Triple x  y  z = normalize vec3
-        Triple x' y' _ = normalize $ Triple x y 0
-        (theta, phi) = toSphericalCoords vec3
 
 
 propToSpherical2 :: Bool
