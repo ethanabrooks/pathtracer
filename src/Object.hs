@@ -4,6 +4,7 @@ module Object ( Object (..)
               , distanceFrom'
               , march
               , getNormal
+              , getColor
               , objects
               ) where
 
@@ -26,8 +27,8 @@ data Form = Disk
             , _normal :: Vec3
             , _radius :: Double }
           | InfinitePlane
-            { _normal :: Vec3
-            , _point  :: Vec3 }
+            { _point  :: Vec3 
+            , _normal :: Vec3 }
           -- | Rectangle
           --   { _center :: Vec3
           --   , _normal :: Vec3
@@ -35,46 +36,14 @@ data Form = Disk
           --   , _width  :: Double }
 
 
-infPlane = Object 
-  { _color      = Triple 255 0 0 
-  , _name       = "infinite plane"
-  , _emittance  = 0
-  , _reflective = False
-  , _form       = InfinitePlane
-             { _normal = Triple 0 0 (-1)
-             , _point  = Triple 0 0 0 }
-  }
-
 infLight = Object 
   { _color      = pure 255
   , _name       = "infinite light"
   , _emittance  = 5
   , _reflective = True
   , _form       = InfinitePlane
-             { _normal = Triple 0 0 1
-             , _point  = Triple 0 0 (-10) }
-  }
-
-light = Object
-  { _color       = pure 255
-  , _name        = "light"
-  , _emittance   = 2
-  , _reflective  = True
-  , _form        = Disk
-    { _center = Triple (10) (30) (-20)
-    , _normal = Triple 0 (0) (1)
-    , _radius = 100 }
-  }
-
-disk1 = Object
-  { _color       = Triple 55 100 255
-  , _name        = "disk"
-  , _emittance   = 0
-  , _reflective  = False
-  , _form        = Disk
-    { _center = Triple 0 0 0
-    , _normal = Triple 0 0 (-1)
-    , _radius = 30 }
+             { _point  = Triple 0 0 (10)
+             , _normal = Triple 1 0 (-1) }
   }
 
 disk2 = Object
@@ -88,19 +57,40 @@ disk2 = Object
     , _radius = 600 }
   }
 
+light = Object
+  { _color       = pure 255
+  , _name        = "light"
+  , _emittance   = 2
+  , _reflective  = True
+  , _form        = Disk
+    { _center = Triple 10 0 (0)
+    , _normal = Triple 0 (0) (1)
+    , _radius = 2 }
+  }
+
+infPlane = Object 
+  { _color      = Triple 255 0 0 
+  , _name       = "infinite plane"
+  , _emittance  = 0
+  , _reflective = False
+  , _form       = InfinitePlane
+                  { _point  = Triple 0 0 10
+                  , _normal = Triple 1 0 (-1) }
+  }
+
 infPlane2 = Object
   { _color       = Triple 0 255 0
-  , _name        = "disk"
+  , _name        = "place"
   , _emittance   = 0
   , _reflective  = False
   , _form        = InfinitePlane
-    { _point = Triple 0 0 10
-    , _normal = Triple 0 0 (-1) }
+                   { _point = Triple 0 0 10
+                   , _normal = Triple 0 1 (-1) }
   }
 
 
 objects :: Vector Object
-objects = fromList [light, infPlane2]
+objects = fromList [infPlane, infPlane2, light]
 
 ---
  
@@ -117,10 +107,10 @@ distanceFrom ray@(Ray origin vector) form =
 
 
 distanceFrom' :: Ray -> Form -> Maybe Double
-distanceFrom' ray@(Ray origin vector) form =
+distanceFrom' ray@(Ray { _origin = origin, _vector = vector }) form =
   case form of
-    Disk center normal radius -> do
-      distanceFromOrigin    <- distanceFrom ray $ InfinitePlane normal center
+    Disk { _center = center, _normal = normal, _radius = radius } -> do
+      distanceFromOrigin    <- distanceFrom ray $ InfinitePlane { _point = center, _normal = normal }
       let point              = march ray distanceFromOrigin
       let distanceFromCenter = norm2 $ point - center
       guard $ distanceFromCenter < radius
@@ -132,13 +122,16 @@ distanceFrom' ray@(Ray origin vector) form =
      
 
       
-    InfinitePlane normal point ->
+    InfinitePlane { _normal = normal, _point = point } ->
         Just $ ((point - origin) `dot` normal) / (vector `dot` normal)
 
 ---
 
 getNormal :: Form -> Vec3
 getNormal form = _normal form
+
+getColor :: Object -> Vec3
+getColor object = _color object / 255.0
 
 ---
 

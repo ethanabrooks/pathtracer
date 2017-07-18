@@ -37,7 +37,7 @@ instance Functor Degrees where
 
 
 black = pure 0 :: Vec3
-white = pure 255 :: Vec3
+white = pure 1 :: Vec3
 
 
 inferMissing :: (Show a, Integral a) => [a] -> [a] -> [a]

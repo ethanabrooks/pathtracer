@@ -8,7 +8,6 @@ module Lib ( imgHeight
            , raysFromCam
            , blackCanvas
            , mainLoop
-           , mainLoop'
            , rZipWith3
            , randomGens
            , rayTrace
@@ -23,6 +22,7 @@ import qualified Data.Vector           as V
 import Util
 import Object
 import Triple
+import Control.Monad
 import Data.Array.Repa (Array, DIM1, DIM2, U, D, Z (..), (:.)(..), (!), (+^))
 import Data.Vector (Vector)
 import System.Random
@@ -32,10 +32,11 @@ import Debug.Trace
 
 
 -- | Parameters
-imgHeight = 29 :: Int --1200
-imgWidth  = 29 :: Int --1200
-cameraDepth = 2 :: Double
-numIters = 30 :: Int
+imgHeight = 300 :: Int --1200
+imgWidth  = 300 :: Int --1200
+cameraDepth = 300 :: Double
+numIters = 20 :: Int
+maxBounces = 3 :: Int
 -- |
 
 
@@ -58,64 +59,46 @@ raysFromCam = flatten $ mapIndex camToPixelRay blackCanvas
 
 camToPixelRay :: DIM2 -> Ray
 camToPixelRay (Z :. i :. j) = Ray
-  { _origin = Triple 0 0 (-cameraDepth)
+  { _origin = Triple 0 0 0
   , _vector = normalize $ Triple i' j' cameraDepth }
-  where i' = fromIntegral i - fromIntegral imgHeight / 2
+  where i' = fromIntegral imgHeight / 2 - fromIntegral i
         j' = fromIntegral j - fromIntegral imgWidth / 2
 
 
 blackCanvas :: Array D DIM2 Vec3
 blackCanvas = R.fromFunction (Z :. imgHeight :. imgWidth) $ const black
 
+
 whiteCanvas :: Array D DIM1 Vec3
-whiteCanvas = R.fromFunction (Z :. imgHeight * imgWidth) $ const black
+whiteCanvas = R.fromFunction (Z :. imgHeight * imgWidth) $ const white
 
 
 mainLoop :: Int -> Array D DIM1 Vec3 -> (Int, Array D DIM1 Vec3)
-mainLoop n canvas = (n + 1, canvas +^ rZipWith3 rayTrace gens raysFromCam whiteCanvas)
+mainLoop n canvas = (n + 1, canvas +^ rZipWith3 (rayTrace maxBounces) gens raysFromCam whiteCanvas)
     where gens = randomGens (imgHeight * imgWidth) n
-
-mainLoop' :: Int -> Array D DIM1 Vec3 -> Array D DIM1 Vec3
-mainLoop' 0 canvas = canvas
-mainLoop' n canvas = mainLoop' (n - 1) (canvas +^ rZipWith3 rayTrace gens raysFromCam whiteCanvas)
-    where gens = randomGens (imgHeight * imgWidth) n
-
 
 ---
 
-rayTrace' :: StdGen -> Ray -> Vec3 -> Vec3
-rayTrace' gen ray pixel = pixel'
-  where (_, _, pixel') = until (isNothing . (\(_, ray, _) -> ray)) update (gen, Just ray, white)
+rayTrace :: Int -> StdGen -> Ray -> Vec3 -> Vec3
+rayTrace 0 _ _ _         = black -- ran out of bounces
+rayTrace n gen ray pixel = interactWith $ closestObjectTo ray
+  where interactWith Nothing = black -- pixel
+        interactWith (Just (object, distance))
+          | hitLight  = fmap (_emittance object *) pixel
+          | otherwise = rayTrace (n-1) gen' ray' pixel' 
+            where hitLight  = _emittance object > 0
+                  (_, gen') = random gen :: (Int, StdGen)
+                  ray'      = bounce gen ray object distance 
+                  pixel'    = pixel * getColor object
+                                                  
 
-rayTrace :: StdGen -> Ray -> Vec3 -> Vec3
-rayTrace gen ray pixel =
-  case update (gen, Just ray, pixel) of
-    (_, Nothing, pixel') -> pixel'
-    (gen', Just ray', pixel') -> rayTrace' gen' ray' pixel'
-
----
-
-update :: (StdGen, Maybe Ray, Vec3) -> (StdGen, Maybe Ray, Vec3)
-update (gen, Nothing, !pixel)  = (gen, Nothing, pixel) 
-update (gen, Just !ray, !pixel) =
-  case closestTo ray of
-    Nothing                  -> (gen, Nothing, black)
-    Just (object, distance)  -> stopAtLight
-      where stopAtLight | _emittance object > 0 = ( gen, Nothing
-                                                  , fmap (_emittance object *) pixel )
-                        | otherwise             = ( snd (random gen :: (Int, StdGen))
-                                                  , Just $ bounce gen ray object distance
-                                                  , fmap (/ 255) $ pixel * _color object )
-
-closestTo :: Ray -> Maybe (Object, Double)
-closestTo ray = V.minimumBy closest $ V.map distanceTo objects
-  where distanceTo object = fmap (object,) (distanceFrom ray $ _form object)
-
-
-closest :: Maybe (Object, Double) -> Maybe (Object, Double) -> Ordering
-closest Nothing _ = GT
-closest _ Nothing = LT
-closest (Just (_, d1)) (Just (_, d2)) = compare d1 d2
+closestObjectTo :: Ray -> Maybe (Object, Double)
+closestObjectTo ray =
+  do let pairWithDistance object = fmap (object,) (distanceFrom ray $ _form object)
+     let pairs = V.mapMaybe pairWithDistance objects
+     let ordering (_, distance1) (_, distance2) = compare distance1 distance2
+     guard . not $ V.null pairs
+     return $ V.minimumBy ordering pairs 
 
 ---
 
@@ -147,7 +130,4 @@ specular gen noise vector normal = rotateRel theta phi vector'
 
 diffuse :: StdGen -> Vec3 -> Vec3 -> Vec3 
 diffuse gen _ normal = rotateRel theta phi normal
-  where [theta, phi] = map Degrees [0, 0] -- . fst $ randomRangeList gen [(0, 0), (0, 380)]
-  -- where (theta', gen') = randomR (0, 90) gen
-  --       (phi', _) = randomR (0, 380) gen
-  --       [theta, phi] = map Degrees [theta', phi']
+  where [theta, phi] = map Degrees . fst $ randomRangeList gen [(0, 90), (0, 380)]

@@ -28,16 +28,20 @@ import Debug.Trace
 import System.Random
 
 
-toImage :: (R.Source r Vec3, S.Shape sh) => Array r sh Vec3 -> P.DynamicImage
+toImage :: (R.Source r Vec3) => Array r DIM2 Vec3 -> P.DynamicImage
 toImage canvas = P.ImageRGB8 $ P.generateImage fromCoords imgHeight imgWidth
-  where fromCoords i j = convert . fmap round . (fmap (min 255)) $ canvas' ! (Z :. i :. j)
-        convert (Triple r g b) = P.PixelRGB8 r g b
-        canvas' = reshape [imgHeight, imgWidth] canvas
+  where fromCoords i j = convertToPixel . (fmap round) . rescale $ getColor i j 
+            where getColor i j = canvas ! (Z :. i :. j)
+                  rescale = fmap (*255)
+                  convertToPixel (Triple r g b) = P.PixelRGB8 r g b
 
+addFrame :: (R.Source r Vec3) => Array r DIM2 Vec3 -> Array D DIM2 Vec3
+addFrame canvas = R.zipWith color coords canvas 
+  where color (Triple x y z) pixel = if x `elem` [0, imgHeight - 1] || y `elem` [0, imgWidth - 1]
+                                     then Triple 255 255 255
+                                     else canvas ! (Z :. x :. y)
+        coords = R.fromFunction (Z :. imgHeight :. imgWidth) (\(Z :. i :. j) -> Triple i j 0)
 
 main :: IO ()
-main = (P.savePngImage "image.png" . toImage) canvas
+main = (P.savePngImage "image.png" . toImage) $ reshape [imgHeight, imgWidth] canvas
     where (_, canvas) = iterate (uncurry mainLoop) (0, flatten blackCanvas) !! numIters
-
-main' :: IO ()
-main' = (P.savePngImage "image.png" . toImage) . mainLoop' numIters $ flatten blackCanvas

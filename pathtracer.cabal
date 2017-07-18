@@ -23,7 +23,6 @@ library
                      , vector
                      , random
                      , JuicyPixels
-                     , repa-algorithms
                      , QuickCheck
                      --, repa-array
                      , accelerate
@@ -49,7 +48,6 @@ executable pathtracer-exe
                      , repa
                      , JuicyPixels
                      , filepath
-                     , repa-algorithms
                      , QuickCheck
                      --, time
   default-language:    Haskell2010
