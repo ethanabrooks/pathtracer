@@ -35,13 +35,13 @@ toImage canvas = P.ImageRGB8 $ P.generateImage fromCoords imgHeight imgWidth
                   rescale = fmap (*255)
                   convertToPixel (Triple r g b) = P.PixelRGB8 r g b
 
-addFrame :: (R.Source r Vec3) => Array r DIM2 Vec3 -> Array D DIM2 Vec3
-addFrame canvas = R.zipWith color coords canvas 
-  where color (Triple x y z) pixel = if x `elem` [0, imgHeight - 1] || y `elem` [0, imgWidth - 1]
-                                     then Triple 255 255 255
-                                     else canvas ! (Z :. x :. y)
-        coords = R.fromFunction (Z :. imgHeight :. imgWidth) (\(Z :. i :. j) -> Triple i j 0)
+blackCanvas :: Array D DIM2 Vec3
+blackCanvas = R.fromFunction (Z :. imgHeight :. imgWidth) $ const black
+  
 
 main :: IO ()
-main = (P.savePngImage "image.png" . toImage) $ reshape [imgHeight, imgWidth] canvas
-    where (_, canvas) = iterate (uncurry mainLoop) (0, flatten blackCanvas) !! numIters
+main = (P.savePngImage "image.png" . toImage) canvas'
+    where (_, flatCanvas) = iterate (uncurry mainLoop) (0, flatten blackCanvas) !! numIters
+          canvas'         = reshape [imgHeight, imgWidth] flatCanvas
+
+

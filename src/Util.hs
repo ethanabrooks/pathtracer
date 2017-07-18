@@ -1,5 +1,4 @@
-module Util ( Ray (..)
-            , black
+module Util ( black
             , white
             , flatten
             , mapIndex
@@ -27,9 +26,6 @@ import System.Random
 import Control.Applicative
 import System.IO.Unsafe
 
-
-data Ray = Ray { _origin   :: Vec3
-               , _vector   :: Vec3 }
 
 
 instance Functor Degrees where
