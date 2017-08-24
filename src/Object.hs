@@ -15,10 +15,8 @@ module Object
 
 import Control.Monad
 import qualified Data.Vector as V
-import Debug.Trace
-import System.Random
-import Triple
-import Util
+import qualified System.Random as Random
+import Triple (Triple(..), Vec3, norm2, dot)
 
 data Color =
   Color (Triple Double)
@@ -75,7 +73,7 @@ newVector a b c = Vector (Triple a b c)
 data Ray = Ray
   { _origin :: Point
   , _vector :: Vector
-  , _gen :: StdGen
+  , _gen :: Random.StdGen
   , _lastStruck :: Maybe Object
   }
 
