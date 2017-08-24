@@ -20,7 +20,6 @@ import Control.Monad
 import Control.Monad.Loops
 import Data.Array.Repa
        ((:.)(..), Array, D, DIM1, DIM2, U, Z(..), (!))
-import Debug.Trace
 import Lib
 import Object
 import System.Environment (getArgs)
@@ -46,5 +45,9 @@ blackCanvas = R.fromFunction (Z :. imgHeight :. imgWidth) $ const black
 main :: IO ()
 main = (P.savePngImage "image.png" . toImage) canvas'
   where
-    (_, flatCanvas) = iterate traceCanvas (flatten blackCanvas) !! numIters
+    (_, flatCanvas) =
+      iterate
+        (\(iteration, canvas) -> (iteration + 1, traceCanvas iteration canvas))
+        (0, flatten blackCanvas) !!
+      numIters
     canvas' = reshape [imgHeight, imgWidth] flatCanvas
