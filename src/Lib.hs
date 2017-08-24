@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TemplateHaskell  #-}
-{-# LANGUAGE TupleSections    #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TupleSections #-}
 
 module Lib
   ( imgHeight
@@ -15,19 +15,19 @@ module Lib
   , specular
   ) where
 
-import           Control.Monad
-import           Data.Angle
-import           Data.Array.Repa       ((:.) (..), Array, D, DIM1, DIM2, U,
-                                        Z (..), (!), (+^))
-import qualified Data.Array.Repa       as R
+import Control.Monad
+import Data.Angle
+import Data.Array.Repa
+       ((:.)(..), Array, D, DIM1, DIM2, U, Z(..), (!), (+^))
+import qualified Data.Array.Repa as R
 import qualified Data.Array.Repa.Shape as S
-import           Data.Maybe
-import qualified Data.Vector           as V
-import           Debug.Trace
-import           Object
-import           System.Random
-import           Triple
-import           Util
+import Data.Maybe
+import qualified Data.Vector as V
+import Debug.Trace
+import Object
+import System.Random
+import Triple
+import Util
 
 -- | Parameters
 imgHeight = 300 :: Int --1200
@@ -60,25 +60,29 @@ camToPixelRay (Z :. i :. j) =
     i' = fromIntegral imgHeight / 2 - fromIntegral i
     j' = fromIntegral j - fromIntegral imgWidth / 2
 
-mainLoop ::
-     (Int, Array D DIM1 (Triple Double)) -> (Int, Array D DIM1 (Triple Double))
-mainLoop (n, canvas) = (n + 1, canvas +^ newColor)
+mainLoop :: (Int, Array D DIM1 (Triple Double))
+         -> (Int, Array D DIM1 (Triple Double))
+mainLoop (seed, canvas) = (seed + 1, canvas +^ newColor)
   where
     newColor = R.zipWith (rayTrace maxBounces Nothing white) gens raysFromCam
-    gens = randomGens (imgHeight * imgWidth) n
+    gens = randomGens (imgHeight * imgWidth) seed
 
 ---
-rayTrace ::
-     Int -> Maybe Object -> Triple Double -> StdGen -> Ray -> Triple Double
+rayTrace :: Int
+         -> Maybe Object
+         -> Triple Double
+         -> StdGen
+         -> Ray
+         -> Triple Double
 rayTrace 0 _ _ _ _ = black -- ran out of bounces
-rayTrace n lastStruck pixel gen ray =
+rayTrace iterations lastStruck pixel gen ray =
   interactWith $ closestObjectTo ray lastStruck
   where
     interactWith :: Maybe (Object, Double) -> Vec3
     interactWith Nothing = black -- pixel
     interactWith (Just (object, distance))
       | hitLight = fmap (_emittance object *) pixel
-      | otherwise = rayTrace (n - 1) (Just object) pixel' gen' ray'
+      | otherwise = rayTrace (iterations - 1) (Just object) pixel' gen' ray'
       where
         hitLight = _emittance object > 0 :: Bool
         (_, gen') = random gen :: (Int, StdGen)
