@@ -3,10 +3,7 @@
 {-# LANGUAGE TupleSections #-}
 
 module Lib
-  ( imgHeight
-  , imgWidth
-  , numIters
-  , raysFromCam
+  ( raysFromCam
   , traceCanvas
   , bounceRay
   , reflectVector
@@ -21,48 +18,43 @@ import qualified Data.Array.Repa as R
 import qualified Data.Array.Repa.Shape as S
 import Data.Maybe
 import qualified Data.Vector as V
-import Debug.Trace
 import Object
-import System.Random
-import Triple
-import Util
+       (Object(..), Ray(..), Point(..), Vector(..), getColor, getNormal,
+        distanceFrom, objects, march, getVector)
+import qualified Params
+import qualified System.Random as Random
+import Triple (Triple(..), Vec3, normalize, dot)
+import Util (flatten, white, black, rotateRel, randomRangeList)
 
--- | Parameters
-imgHeight = 300 :: Int --1200
-
-imgWidth = 300 :: Int --1200
-
-cameraDepth = 300 :: Double
-
-numIters = 50 :: Int
-
-maxBounces = 3 :: Int
-
--- |
 raysFromCam :: Int -> Array D DIM1 Ray
 raysFromCam iteration =
   flatten $
-  R.fromFunction (Z :. imgHeight :. imgWidth) (rayFromCamToPixel iteration)
+  R.fromFunction
+    (Z :. Params.imgHeight :. Params.imgWidth)
+    (rayFromCamToPixel iteration)
 
 rayFromCamToPixel :: Int -> DIM2 -> Ray
 rayFromCamToPixel iteration (Z :. i :. j) =
   Ray
   { _origin = Point $ pure 0
-  , _vector = Vector $ normalize $ Triple i' j' cameraDepth
-  , _gen = mkStdGen seed
+  , _vector = Vector $ normalize $ Triple i' j' Params.cameraDepth
+  , _gen = Random.mkStdGen seed
   , _lastStruck = Nothing
   }
   where
-    i' = fromIntegral imgHeight / 2 - fromIntegral i
-    j' = fromIntegral j - fromIntegral imgWidth / 2
-    seed = (iteration * imgHeight * imgWidth) + (i * imgWidth + j)
+    i' = fromIntegral Params.imgHeight / 2 - fromIntegral i
+    j' = fromIntegral j - fromIntegral Params.imgWidth / 2
+    seed =
+      (iteration * Params.imgHeight * Params.imgWidth) +
+      (i * Params.imgWidth + j)
 
 traceCanvas :: Int
             -> Array D DIM1 (Triple Double)
             -> Array D DIM1 (Triple Double)
 traceCanvas iteration canvas = canvas +^ newColor
   where
-    newColor = R.map (terminalColor maxBounces white) (raysFromCam iteration)
+    newColor =
+      R.map (terminalColor Params.maxBounces white) (raysFromCam iteration)
 
 ---
 terminalColor :: Int -> Triple Double -> Ray -> Triple Double
@@ -105,16 +97,20 @@ bounceRay ray@(Ray {_gen = gen}) object distance =
   where
     origin = Point $ march ray distance
     vector = Vector $ reflectVector gen object $ getVector ray
-    (_, gen') = random gen :: (Int, StdGen)
+    (_, gen') = Random.random gen :: (Int, Random.StdGen)
 
-reflectVector :: StdGen -> Object -> Triple Double -> Triple Double
+reflectVector :: Random.StdGen -> Object -> Triple Double -> Triple Double
 reflectVector gen object vector
   | _reflective object = specular gen 0 vector normal
   | otherwise = diffuse gen vector normal
   where
     normal = getNormal $ _form object
 
-specular :: StdGen -> Double -> Triple Double -> Triple Double -> Triple Double
+specular :: Random.StdGen
+         -> Double
+         -> Triple Double
+         -> Triple Double
+         -> Triple Double
 specular gen noise vector normal =
   rotateRel (Degrees theta) (Degrees phi) vector'
   where
@@ -128,7 +124,7 @@ specular gen noise vector normal =
     Degrees maxTheta = min angleWithSurface $ Degrees noise
     ([theta, phi], _) = randomRangeList gen [(0, maxTheta), (0, 380)]
 
-diffuse :: StdGen -> Triple Double -> Triple Double -> Triple Double
+diffuse :: Random.StdGen -> Triple Double -> Triple Double -> Triple Double
 diffuse gen _ normal = rotateRel (Degrees theta) (Degrees phi) normal
   where
     ([theta, phi], _) = randomRangeList gen [(0, 90), (0, 380)]

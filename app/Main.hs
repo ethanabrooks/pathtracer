@@ -20,8 +20,8 @@ import Control.Monad
 import Control.Monad.Loops
 import Data.Array.Repa
        ((:.)(..), Array, D, DIM1, DIM2, U, Z(..), (!))
-import Lib
-import Object
+import Lib (traceCanvas)
+import qualified Params
 import System.Environment (getArgs)
 import System.FilePath (replaceExtension)
 import System.Random
@@ -31,7 +31,8 @@ import Util
 toImage
   :: (R.Source r Vec3)
   => Array r DIM2 Vec3 -> P.DynamicImage
-toImage canvas = P.ImageRGB8 $ P.generateImage fromCoords imgHeight imgWidth
+toImage canvas =
+  P.ImageRGB8 $ P.generateImage fromCoords Params.imgHeight Params.imgWidth
   where
     fromCoords i j = convertToPixel . (fmap round) . rescale $ getColor i j
       where
@@ -40,7 +41,8 @@ toImage canvas = P.ImageRGB8 $ P.generateImage fromCoords imgHeight imgWidth
         convertToPixel (Triple r g b) = P.PixelRGB8 r g b
 
 blackCanvas :: Array D DIM2 Vec3
-blackCanvas = R.fromFunction (Z :. imgHeight :. imgWidth) $ const black
+blackCanvas =
+  R.fromFunction (Z :. Params.imgHeight :. Params.imgWidth) $ const black
 
 main :: IO ()
 main = (P.savePngImage "image.png" . toImage) canvas'
@@ -49,5 +51,5 @@ main = (P.savePngImage "image.png" . toImage) canvas'
       iterate
         (\(iteration, canvas) -> (iteration + 1, traceCanvas iteration canvas))
         (0, flatten blackCanvas) !!
-      numIters
-    canvas' = reshape [imgHeight, imgWidth] flatCanvas
+      Params.numIters
+    canvas' = reshape [Params.imgHeight, Params.imgWidth] flatCanvas
