@@ -57,9 +57,10 @@ rayFromCamToPixel iteration (Z :. i :. j) =
     j' = fromIntegral j - fromIntegral imgWidth / 2
     seed = (iteration * imgHeight * imgWidth) + (i * imgWidth + j)
 
-traceCanvas :: (Int, Array D DIM1 (Triple Double))
-            -> (Int, Array D DIM1 (Triple Double))
-traceCanvas (iteration, canvas) = (iteration + 1, canvas +^ newColor)
+traceCanvas :: Int
+            -> Array D DIM1 (Triple Double)
+            -> Array D DIM1 (Triple Double)
+traceCanvas iteration canvas = canvas +^ newColor
   where
     newColor = R.map (terminalColor maxBounces white) (raysFromCam iteration)
 
@@ -80,17 +81,20 @@ terminalColor bouncesLeft pixel ray = interactWith $ closestObjectTo ray
 
 closestObjectTo :: Ray -> Maybe (Object, Double)
 closestObjectTo ray = do
-  guard . not $ V.null pairs
+  guard . not $ V.null pairs -- not all Nothing
   return $ V.minimumBy distanceOrdering pairs
   where
-    pairWithDistance :: Object -> Maybe (Object, Double)
-    pairWithDistance object = fmap (object, ) (distanceFrom ray $ _form object)
-    objectsWithout :: Object -> V.Vector Object
-    objectsWithout lastStruck' = V.filter (lastStruck' /=) objects
-    objects' :: V.Vector Object
-    objects' = maybe objects objectsWithout $ _lastStruck ray
     pairs :: V.Vector (Object, Double)
-    pairs = V.mapMaybe pairWithDistance objects'
+    -- Drop objects with negative and infinite distances
+    pairs = V.mapMaybe pairWithDistance objectsWithoutLastStruck
+    pairWithDistance :: Object -> Maybe (Object, Double)
+    -- Nothing if distance is negative or infinite
+    pairWithDistance object = fmap (object, ) (distanceFrom ray $ _form object)
+    objectsWithoutLastStruck :: V.Vector Object
+    objectsWithoutLastStruck =
+      case _lastStruck ray of
+        Nothing -> objects
+        Just lastStruck -> V.filter (lastStruck /=) objects
     distanceOrdering :: (Object, Double) -> (Object, Double) -> Ordering
     distanceOrdering (_, distance1) (_, distance2) = compare distance1 distance2
 

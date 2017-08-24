@@ -46,5 +46,5 @@ blackCanvas = R.fromFunction (Z :. imgHeight :. imgWidth) $ const black
 main :: IO ()
 main = (P.savePngImage "image.png" . toImage) canvas'
   where
-    (_, flatCanvas) = iterate traceCanvas (0, flatten blackCanvas) !! numIters
+    (_, flatCanvas) = iterate traceCanvas (flatten blackCanvas) !! numIters
     canvas' = reshape [imgHeight, imgWidth] flatCanvas
