@@ -7,11 +7,9 @@ module Lib
   , imgWidth
   , numIters
   , raysFromCam
-  , mainLoop
-  , randomGens
-  , rayTrace
-  , bounce
-  , reflect
+  , traceCanvas
+  , bounceRay
+  , reflectVector
   , specular
   ) where
 
@@ -41,52 +39,44 @@ numIters = 50 :: Int
 maxBounces = 3 :: Int
 
 -- |
-randomGens :: Int -> Int -> Array D DIM1 StdGen
-randomGens len =
-  R.map mkStdGen .
-  R.fromListUnboxed (Z :. len) . (take len . randoms) . mkStdGen
+raysFromCam :: Int -> Array D DIM1 Ray
+raysFromCam iteration =
+  flatten $
+  R.fromFunction (Z :. imgHeight :. imgWidth) (rayFromCamToPixel iteration)
 
-raysFromCam :: Array D DIM1 Ray
-raysFromCam =
-  flatten $ R.fromFunction (Z :. imgHeight :. imgWidth) camToPixelRay
-
-camToPixelRay :: DIM2 -> Ray
-camToPixelRay (Z :. i :. j) =
+rayFromCamToPixel :: Int -> DIM2 -> Ray
+rayFromCamToPixel iteration (Z :. i :. j) =
   Ray
   { _origin = Point $ pure 0
   , _vector = Vector $ normalize $ Triple i' j' cameraDepth
+  , _gen = mkStdGen seed
   }
   where
     i' = fromIntegral imgHeight / 2 - fromIntegral i
     j' = fromIntegral j - fromIntegral imgWidth / 2
+    seed = (iteration * imgHeight * imgWidth) + (i * imgWidth + j)
 
-mainLoop :: (Int, Array D DIM1 (Triple Double))
-         -> (Int, Array D DIM1 (Triple Double))
-mainLoop (seed, canvas) = (seed + 1, canvas +^ newColor)
+traceCanvas :: (Int, Array D DIM1 (Triple Double))
+            -> (Int, Array D DIM1 (Triple Double))
+traceCanvas (iteration, canvas) = (iteration + 1, canvas +^ newColor)
   where
-    newColor = R.zipWith (rayTrace maxBounces Nothing white) gens raysFromCam
-    gens = randomGens (imgHeight * imgWidth) seed
+    newColor =
+      R.map (terminalColor maxBounces Nothing white) (raysFromCam iteration)
 
 ---
-rayTrace :: Int
-         -> Maybe Object
-         -> Triple Double
-         -> StdGen
-         -> Ray
-         -> Triple Double
-rayTrace 0 _ _ _ _ = black -- ran out of bounces
-rayTrace iterations lastStruck pixel gen ray =
+terminalColor :: Int -> Maybe Object -> Triple Double -> Ray -> Triple Double
+terminalColor 0 _ _ _ = black -- ran out of bounces
+terminalColor bouncesLeft lastStruck pixel ray =
   interactWith $ closestObjectTo ray lastStruck
   where
     interactWith :: Maybe (Object, Double) -> Vec3
     interactWith Nothing = black -- pixel
     interactWith (Just (object, distance))
       | hitLight = fmap (_emittance object *) pixel
-      | otherwise = rayTrace (iterations - 1) (Just object) pixel' gen' ray'
+      | otherwise = terminalColor (bouncesLeft - 1) (Just object) pixel' ray'
       where
         hitLight = _emittance object > 0 :: Bool
-        (_, gen') = random gen :: (Int, StdGen)
-        ray' = bounce gen ray object distance :: Ray
+        ray' = bounceRay ray object distance :: Ray
         pixel' = pixel * getColor object :: Triple Double
 
 closestObjectTo :: Ray -> Maybe Object -> Maybe (Object, Double)
@@ -106,14 +96,15 @@ closestObjectTo ray lastStruck = do
     distanceOrdering (_, distance1) (_, distance2) = compare distance1 distance2
 
 ---
-bounce :: StdGen -> Ray -> Object -> Double -> Ray
-bounce gen ray object distance = Ray origin vector
+bounceRay :: Ray -> Object -> Double -> Ray
+bounceRay ray@(Ray {_gen = gen}) object distance = Ray origin vector gen'
   where
     origin = Point $ march ray distance
-    vector = Vector $ reflect gen object $ getVector ray
+    vector = Vector $ reflectVector gen object $ getVector ray
+    (_, gen') = random gen :: (Int, StdGen)
 
-reflect :: StdGen -> Object -> Triple Double -> Triple Double
-reflect gen object vector
+reflectVector :: StdGen -> Object -> Triple Double -> Triple Double
+reflectVector gen object vector
   | _reflective object = specular gen 0 vector normal
   | otherwise = diffuse gen vector normal
   where

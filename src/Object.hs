@@ -13,11 +13,12 @@ module Object
   , objects
   ) where
 
-import           Control.Monad
-import qualified Data.Vector   as V
-import           Debug.Trace
-import           Triple
-import           Util
+import Control.Monad
+import qualified Data.Vector as V
+import Debug.Trace
+import System.Random
+import Triple
+import Util
 
 data Color =
   Color (Triple Double)
@@ -28,11 +29,11 @@ instance Eq Color where
   Color c1 == Color c2 = c1 == c2
 
 data Object = Object
-  { _color      :: Color
-  , _emittance  :: Double
+  { _color :: Color
+  , _emittance :: Double
   , _reflective :: Bool
-  , _form       :: Form
-  , _name       :: String
+  , _form :: Form
+  , _name :: String
   }
 
 instance Eq Object where
@@ -50,10 +51,10 @@ instance Eq Vector where
 
 data Form
   = Disk { _center :: Point
-         , _normal :: Vector
-         , _radius :: Double }
-  | InfinitePlane { _point  :: Point
-                  , _normal :: Vector }
+        ,  _normal :: Vector
+        ,  _radius :: Double}
+  | InfinitePlane { _point :: Point
+                 ,  _normal :: Vector}
           -- | Rectangle
           --   { _center :: Vec3
           --   , _normal :: Vec3
@@ -74,6 +75,7 @@ newVector a b c = Vector (Triple a b c)
 data Ray = Ray
   { _origin :: Point
   , _vector :: Vector
+  , _gen :: StdGen
   }
 
 infLight =
@@ -134,7 +136,7 @@ objects = V.fromList [infPlane, light]
 
 ---
 march :: Ray -> Double -> Vec3
-march (Ray (Point origin) (Vector vector)) distance =
+march (Ray (Point origin) (Vector vector) _) distance =
   origin + fmap (distance *) vector
 
 ---
@@ -145,7 +147,7 @@ distanceFrom ray@(Ray {_origin = origin, _vector = vector}) form = do
   return distance
 
 distanceFrom' :: Ray -> Form -> Maybe Double
-distanceFrom' ray@(Ray (Point origin) (Vector vector)) form =
+distanceFrom' ray@(Ray (Point origin) (Vector vector) _) form =
   case form of
     Disk (Point center) (Vector normal) radius -> do
       distanceFromOrigin <-

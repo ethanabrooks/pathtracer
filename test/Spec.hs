@@ -1,15 +1,15 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-import           Control.Applicative
-import           Data.Angle
-import           Debug.Trace
-import           Lib
-import           Object
-import           System.Random
-import           Test.QuickCheck     (quickCheck, quickCheckAll, (==>))
-import qualified Test.QuickCheck     as T
-import           Triple
-import           Util
+import Control.Applicative
+import Data.Angle
+import Debug.Trace
+import Lib
+import Object
+import System.Random
+import Test.QuickCheck (quickCheck, quickCheckAll, (==>))
+import qualified Test.QuickCheck as T
+import Triple
+import Util
 
 tolerance :: Double
 tolerance = 1e-9
@@ -42,8 +42,8 @@ propNormalize1 vec =
 propNormalize2 :: Bool
 propNormalize2 = norm2 (normalize $ Triple 0 0 0) == 0
 
-sphericalRelations ::
-     Double
+sphericalRelations
+  :: Double
   -> Double
   -> Double
   -> Double
