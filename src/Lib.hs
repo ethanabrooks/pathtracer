@@ -50,6 +50,7 @@ rayFromCamToPixel iteration (Z :. i :. j) =
   { _origin = Point $ pure 0
   , _vector = Vector $ normalize $ Triple i' j' cameraDepth
   , _gen = mkStdGen seed
+  , _lastStruck = Nothing
   }
   where
     i' = fromIntegral imgHeight / 2 - fromIntegral i
@@ -60,27 +61,25 @@ traceCanvas :: (Int, Array D DIM1 (Triple Double))
             -> (Int, Array D DIM1 (Triple Double))
 traceCanvas (iteration, canvas) = (iteration + 1, canvas +^ newColor)
   where
-    newColor =
-      R.map (terminalColor maxBounces Nothing white) (raysFromCam iteration)
+    newColor = R.map (terminalColor maxBounces white) (raysFromCam iteration)
 
 ---
-terminalColor :: Int -> Maybe Object -> Triple Double -> Ray -> Triple Double
-terminalColor 0 _ _ _ = black -- ran out of bounces
-terminalColor bouncesLeft lastStruck pixel ray =
-  interactWith $ closestObjectTo ray lastStruck
+terminalColor :: Int -> Triple Double -> Ray -> Triple Double
+terminalColor 0 _ _ = black -- ran out of bounces
+terminalColor bouncesLeft pixel ray = interactWith $ closestObjectTo ray
   where
     interactWith :: Maybe (Object, Double) -> Vec3
     interactWith Nothing = black -- pixel
     interactWith (Just (object, distance))
       | hitLight = fmap (_emittance object *) pixel
-      | otherwise = terminalColor (bouncesLeft - 1) (Just object) pixel' ray'
+      | otherwise = terminalColor (bouncesLeft - 1) pixel' ray'
       where
         hitLight = _emittance object > 0 :: Bool
         ray' = bounceRay ray object distance :: Ray
         pixel' = pixel * getColor object :: Triple Double
 
-closestObjectTo :: Ray -> Maybe Object -> Maybe (Object, Double)
-closestObjectTo ray lastStruck = do
+closestObjectTo :: Ray -> Maybe (Object, Double)
+closestObjectTo ray = do
   guard . not $ V.null pairs
   return $ V.minimumBy distanceOrdering pairs
   where
@@ -89,7 +88,7 @@ closestObjectTo ray lastStruck = do
     objectsWithout :: Object -> V.Vector Object
     objectsWithout lastStruck' = V.filter (lastStruck' /=) objects
     objects' :: V.Vector Object
-    objects' = maybe objects objectsWithout $ lastStruck
+    objects' = maybe objects objectsWithout $ _lastStruck ray
     pairs :: V.Vector (Object, Double)
     pairs = V.mapMaybe pairWithDistance objects'
     distanceOrdering :: (Object, Double) -> (Object, Double) -> Ordering
@@ -97,7 +96,8 @@ closestObjectTo ray lastStruck = do
 
 ---
 bounceRay :: Ray -> Object -> Double -> Ray
-bounceRay ray@(Ray {_gen = gen}) object distance = Ray origin vector gen'
+bounceRay ray@(Ray {_gen = gen}) object distance =
+  Ray origin vector gen' $ Just object
   where
     origin = Point $ march ray distance
     vector = Vector $ reflectVector gen object $ getVector ray

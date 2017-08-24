@@ -76,6 +76,7 @@ data Ray = Ray
   { _origin :: Point
   , _vector :: Vector
   , _gen :: StdGen
+  , _lastStruck :: Maybe Object
   }
 
 infLight =
@@ -136,7 +137,7 @@ objects = V.fromList [infPlane, light]
 
 ---
 march :: Ray -> Double -> Vec3
-march (Ray (Point origin) (Vector vector) _) distance =
+march (Ray (Point origin) (Vector vector) _ _) distance =
   origin + fmap (distance *) vector
 
 ---
@@ -147,7 +148,7 @@ distanceFrom ray@(Ray {_origin = origin, _vector = vector}) form = do
   return distance
 
 distanceFrom' :: Ray -> Form -> Maybe Double
-distanceFrom' ray@(Ray (Point origin) (Vector vector) _) form =
+distanceFrom' ray@(Ray (Point origin) (Vector vector) _ _) form =
   case form of
     Disk (Point center) (Vector normal) radius -> do
       distanceFromOrigin <-
