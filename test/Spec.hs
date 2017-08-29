@@ -5,6 +5,7 @@ import Debug.Trace
 import Lib
 import Object
        (Point(..), Vector(..), Ray(..), march, distanceFrom', Form(..))
+import qualified Params
 import qualified System.Random as Random
 import Test.QuickCheck (quickCheck, quickCheckAll, (==>))
 import qualified Test.QuickCheck as T
@@ -182,6 +183,14 @@ propRandomRangeList l1 h1 l2 h2 seed =
     (o1, gen') = Random.randomR (l1, h1) gen :: (Float, Random.StdGen)
     (o2, gen'') = Random.randomR (l2, h2) gen' :: (Float, Random.StdGen)
 
+propUniqueId :: Int -> Int -> Int -> Int -> Int -> Int -> Bool
+propUniqueId i1 j1 iteration1 i2 j2 iteration2 =
+  (uniqueId i1' j1' iteration1 == uniqueId i2' j2' iteration2) ==
+  (i1' == i2' && j1' == j2' && iteration1 == iteration2)
+  where
+    [i1', i2'] = map (`mod` Params.imgHeight) [i1, i2]
+    [j1', j2'] = map (`mod` Params.imgWidth) [j1, j2]
+
 main = do
   putStrLn "propCross1"
   quickCheck propCross1
@@ -215,6 +224,8 @@ main = do
   quickCheck propFromSpherical2
   putStrLn "propSpecular"
   quickCheck propSpecular
+  putStrLn "propUniqueId"
+  quickCheck propUniqueId
   -- one offs
   putStrLn "propNorm2"
   quickCheck propNorm2

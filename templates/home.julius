@@ -4,7 +4,7 @@ canvas = document.getElementById('canvas');
 conn.onopen = function() {
     setInterval(function() { 
         conn.send(canvas.src);
-      }, 2000);
+      }, 50);
 };
 conn.onmessage = function(e) {
     header.textContent = e.data;

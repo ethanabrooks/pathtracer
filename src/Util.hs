@@ -18,6 +18,7 @@ module Util
   , randomRangeList
   , fromTripleArray
   , toTripleArray
+  , blackCanvas
   ) where
 
 import Control.Applicative
@@ -28,6 +29,7 @@ import Data.Array.Repa
 import qualified Data.Array.Repa as R
 import qualified Data.Array.Repa.Shape as S
 import Data.Fixed (mod')
+import qualified Params
 import qualified System.Random as Random
 import Triple
        (Vec3, Triple(..), tripleToList, listToTriple, normalize, norm2,
@@ -39,6 +41,10 @@ instance Functor Degrees where
 black = pure 0 :: Vec3
 
 white = pure 1 :: Vec3
+
+blackCanvas :: Array D DIM2 Vec3
+blackCanvas =
+  R.fromFunction (Z :. Params.imgHeight :. Params.imgWidth) $ const black
 
 inferMissing
   :: (Show a, Integral a)

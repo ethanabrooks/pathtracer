@@ -32,7 +32,12 @@ library
 executable web
   hs-source-dirs:      app
   main-is:             Web.hs
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  ghc-options:         -O4 
+                       -threaded 
+                       -rtsopts 
+                       -with-rtsopts=-N 
+                       -funfolding-use-threshold1000 
+                       -funfolding-keeness-factor1000
   build-depends:       base
                      , pathtracer
                      , yesod-websockets
@@ -52,11 +57,12 @@ executable web
 executable write
   hs-source-dirs:      app
   main-is:             Write.hs
-  ghc-options:
-                     -O4
-                     -threaded
-                     -rtsopts
-                     "-with-rtsopts=-N"
+  ghc-options:         -O4 
+                       -threaded 
+                       -rtsopts 
+                       -with-rtsopts=-N 
+                       -funfolding-use-threshold1000 
+                       -funfolding-keeness-factor1000
   build-depends:       base 
                      , pathtracer
                      , repa

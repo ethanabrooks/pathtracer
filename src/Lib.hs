@@ -8,9 +8,11 @@ module Lib
   , bounceRay
   , reflectVector
   , specular
+  , uniqueId
   ) where
 
 import qualified Codec.Picture as P
+import Control.Arrow
 import Control.Monad
 import Data.Angle (Degrees(..), arccosine)
 import Data.Array.Repa
@@ -34,25 +36,27 @@ raysFromCam iteration =
     (Z :. Params.imgHeight :. Params.imgWidth)
     (rayFromCamToPixel iteration)
 
+uniqueId :: Int -> Int -> Int -> Int
+uniqueId i j iteration =
+  (iteration * Params.imgHeight * Params.imgWidth) + (i * Params.imgWidth + j)
+
 rayFromCamToPixel :: Int -> DIM2 -> Ray
 rayFromCamToPixel iteration (Z :. i :. j) =
   Ray
   { _origin = Point $ pure 0
   , _vector = Vector $ normalize $ Triple i' j' Params.cameraDepth
-  , _gen = Random.mkStdGen seed
+  , _gen = Random.mkStdGen $ uniqueId i j iteration
   , _lastStruck = Nothing
   }
   where
     i' = fromIntegral Params.imgHeight / 2 - fromIntegral i
     j' = fromIntegral j - fromIntegral Params.imgWidth / 2
-    seed =
-      (iteration * Params.imgHeight * Params.imgWidth) +
-      (i * Params.imgWidth + j)
 
-traceCanvas :: Int
-            -> Array D DIM1 (Triple Double)
-            -> Array D DIM1 (Triple Double)
-traceCanvas iteration canvas = canvas +^ newColor
+traceCanvas :: (Int, Array D DIM1 Vec3) -> (Int, Array D DIM1 Vec3)
+traceCanvas (iteration, canvas) = (iteration + 1, traceCanvas' iteration canvas)
+
+traceCanvas' :: Int -> Array D DIM1 Vec3 -> Array D DIM1 Vec3
+traceCanvas' iteration canvas = canvas +^ newColor
   where
     newColor =
       R.map (terminalColor Params.maxBounces white) (raysFromCam iteration)

@@ -11,26 +11,30 @@ import qualified Data.ByteString.Lazy.Char8
 import qualified Data.Text.Encoding
 import qualified Data.Text.Lazy as TL
 import qualified Params
-import Triple (Triple(..), Vec3, normalize, dot)
+import Triple (Triple(..), Vec3, normalize, dot, tripleToList)
+import Util (reshape)
 
-repaToImage
+listToPixelRGB8 :: [Double] -> P.PixelRGB8
+listToPixelRGB8 list = P.PixelRGB8 r g b
+  where
+    [r, g, b] = round <$> (255 *) <$> list
+
+repa3ToImage
   :: (R.Source r Double)
   => Array r DIM3 Double -> P.Image P.PixelRGB8
-repaToImage canvas = P.generateImage fromCoords Params.imgHeight Params.imgWidth
+repa3ToImage canvas =
+  P.generateImage fromCoords Params.imgHeight Params.imgWidth
   where
     fromCoords i j =
-      let [r, g, b] = [round $ canvas ! (Z :. i :. j :. k) | k <- [0 .. 2]]
-      in P.PixelRGB8 r g b
+      listToPixelRGB8 [canvas ! (Z :. i :. j :. k) | k <- [0 .. 2]]
 
-toImage
+repa2ToImage
   :: (R.Source r Vec3)
   => Array r DIM2 Vec3 -> P.Image P.PixelRGB8
-toImage canvas = P.generateImage fromCoords Params.imgHeight Params.imgWidth
+repa2ToImage canvas =
+  P.generateImage fromCoords Params.imgHeight Params.imgWidth
   where
-    fromCoords i j = convertToPixel . (round <$>) . ((255 *) <$>) $ getColor i j
-      where
-        getColor i j = canvas ! (Z :. i :. j)
-        convertToPixel (Triple r g b) = P.PixelRGB8 r g b
+    fromCoords i j = listToPixelRGB8 . tripleToList $ canvas ! (Z :. i :. j)
 
 imageToText :: P.Image P.PixelRGB8 -> TL.Text
 imageToText =
@@ -38,3 +42,9 @@ imageToText =
   Data.Text.Encoding.decodeUtf8 .
   Data.ByteString.Base64.encode .
   Data.ByteString.Lazy.Char8.toStrict . P.encodePng
+
+repa1ToText
+  :: (R.Source r Vec3)
+  => Array r DIM1 Vec3 -> TL.Text
+repa1ToText =
+  imageToText . repa2ToImage . (reshape [Params.imgHeight, Params.imgWidth])

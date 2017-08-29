@@ -13,24 +13,19 @@ module Main
 import qualified Codec.Picture as P
 import qualified Data.Array.Repa as R
 
-import Conversion (repaToImage, toImage)
+import Conversion (repa2ToImage, repa1ToText)
 import Data.Array.Repa
        ((:.)(..), Array, D, DIM1, DIM2, U, Z(..), (!))
 import Lib (traceCanvas)
 import qualified Params
 import Triple (Vec3, Triple(..))
-import Util (black, flatten, reshape, fromTripleArray)
-
-blackCanvas :: Array D DIM2 Vec3
-blackCanvas =
-  R.fromFunction (Z :. Params.imgHeight :. Params.imgWidth) $ const black
+import Util (black, flatten, reshape, fromTripleArray, blackCanvas)
 
 main :: IO ()
-main = (P.savePngImage "image.png" . P.ImageRGB8 . toImage) canvas'
+main = do
+  (P.savePngImage "image.png" . P.ImageRGB8 . repa2ToImage) canvas'
+  {-putStrLn . show $ repa1ToText flatCanvas-}
   where
     (_, flatCanvas) =
-      iterate
-        (\(iteration, canvas) -> (iteration + 1, traceCanvas iteration canvas))
-        (0, flatten blackCanvas) !!
-      Params.numIters
+      iterate traceCanvas (0, flatten blackCanvas) !! Params.numIters
     canvas' = reshape [Params.imgHeight, Params.imgWidth] flatCanvas

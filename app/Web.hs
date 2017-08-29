@@ -5,7 +5,7 @@ module Main where
 
 import qualified Codec.Picture as P
 import Control.Arrow
-import Conversion (imageToText, repaToImage, toImage)
+import Conversion (imageToText, repa3ToImage, repa1ToText)
 import qualified Data.Array.Repa as R
 import Data.Array.Repa ((:.)(..), Array, D, DIM1, DIM3, Z(..), (!))
 import qualified Data.ByteString.Base64
@@ -21,8 +21,9 @@ import Lib (traceCanvas)
 import qualified Params
 import Text.Hamlet (hamletFile)
 import Text.Julius (juliusFile)
-import Triple (Triple)
-import Util (fromTripleArray, toTripleArray, flatten, reshape)
+import Triple (Triple, Vec3)
+import Util
+       (fromTripleArray, toTripleArray, flatten, reshape, blackCanvas)
 import Yesod.Core
 import qualified Yesod.WebSockets as WS
 
@@ -36,47 +37,35 @@ mkYesod "App" [parseRoutes| / HomeR GET |]
 imgSrcDelimiter :: TL.Text
 imgSrcDelimiter = ","
 
-f :: Array D DIM3 Double -> Array D DIM3 Double
-f =
-  fromTripleArray .
-  (reshape [Params.imgHeight, Params.imgWidth]) .
-  (traceCanvas Params.maxBounces) . flatten . toTripleArray
+imageSource :: Source (WS.WebSocketsT Handler) (Int, Array D DIM1 Vec3)
+imageSource = Data.Conduit.List.iterate traceCanvas $ (0, flatten blackCanvas)
 
-imageSource :: Source (WS.WebSocketsT Handler) (Array D DIM3 Double)
-imageSource = Data.Conduit.List.iterate f black
+rendered :: Array D DIM1 Vec3
+rendered = snd $ iterate traceCanvas (0, flatten blackCanvas) !! 10
 
-imageSource' :: Source (WS.WebSocketsT Handler) (Array D DIM1 (Triple Double))
-imageSource' = Data.Conduit.List.iterate (traceCanvas Params.maxBounces) black'
+renderedText :: TL.Text
+renderedText = formatAsImgSrc (blackText, rendered)
 
-black :: Array D DIM3 Double
-black = R.fromFunction (Z :. Params.imgHeight :. Params.imgWidth :. 3) $ const 0
-
-black' :: Array D DIM1 (Triple Double)
-black' = R.fromFunction (Z :. Params.imgHeight * Params.imgWidth) $ const 0
-
-blackByteString :: TL.Text
-blackByteString =
+blackText :: TL.Text
+blackText =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAADUlEQVR4nGNgGAWkAwABNgABVtF/yAAAAABJRU5ErkJggg=="
 
 getImgSrcPrefix :: TL.Text -> TL.Text
 getImgSrcPrefix = fst . (TL.breakOn imgSrcDelimiter)
 
-combineStreams :: (TL.Text, Array D DIM3 Double) -> TL.Text
-combineStreams =
-  (getImgSrcPrefix *** (imageToText . repaToImage)) >>>
-  (\(a, b) -> a <> imgSrcDelimiter <> b)
+formatAsImgSrc :: (TL.Text, Array D DIM1 Vec3) -> TL.Text
+formatAsImgSrc =
+  (getImgSrcPrefix *** repa1ToText) >>> (\(a, b) -> a <> imgSrcDelimiter <> b)
 
-combineStreams' :: (TL.Text, Array D DIM1 (Triple Double)) -> TL.Text
-combineStreams' =
-  (getImgSrcPrefix ***
-   (imageToText . toImage . (reshape [Params.imgHeight, Params.imgWidth]))) >>>
-  (\(a, b) -> a <> imgSrcDelimiter <> b)
+discardIteration :: (TL.Text, (Int, Array D DIM1 Vec3))
+                 -> (TL.Text, Array D DIM1 Vec3)
+discardIteration (text, (iteration, array)) = (text, array)
 
 getHomeR :: Handler Html
 getHomeR = do
   WS.webSockets $
-    zipSources WS.sourceWS imageSource' $$
-    (Data.Conduit.List.map combineStreams') =$
+    zipSources WS.sourceWS imageSource $$
+    (Data.Conduit.List.map $ formatAsImgSrc . discardIteration) =$
     WS.sinkWSText
   defaultLayout $ do
     toWidget $(hamletFile "templates/home.hamlet")
