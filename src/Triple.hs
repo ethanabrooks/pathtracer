@@ -24,42 +24,34 @@ data Triple a =
 type Vec3 = Triple Double
 
 tupleToTriple :: (t, t, t) -> Triple t
-{-# INLINE tupleToTriple #-}
 tupleToTriple (x, y, z) = Triple x y z
 
 tripleToTuple :: Triple t -> (t, t, t)
-{-# INLINE tripleToTuple #-}
 tripleToTuple (Triple x y z) = (x, y, z)
 
 tripleToList :: Triple t -> [t]
-{-# INLINE tripleToList #-}
 tripleToList (Triple a1 a2 a3) = [a1, a2, a3]
 
 listToTriple :: [t] -> Triple t
-{-# INLINE listToTriple #-}
 listToTriple [a1, a2, a3] = Triple a1 a2 a3
 listToTriple _ = error "Not a valid type to convert to Triple."
 
 tSum
   :: Num a
   => Triple a -> a
-{-# INLINE tSum #-}
 tSum = sum . tripleToList
 
 tAnd :: Triple Bool -> Bool
-{-# INLINE tAnd #-}
 tAnd = and . tripleToList
 
 dot
   :: Num a
   => Triple a -> Triple a -> a
-{-# INLINE dot #-}
 dot a b = tSum $ a * b
 
 cross
   :: Num a
   => Triple a -> Triple a -> Triple a
-{-# INLINE cross #-}
 cross (Triple x1 y1 z1) (Triple x2 y2 z2) = Triple x y z
   where
     x = y1 * z2 - z1 * y2
@@ -69,11 +61,9 @@ cross (Triple x1 y1 z1) (Triple x2 y2 z2) = Triple x y z
 norm2
   :: Floating a
   => Triple a -> a
-{-# INLINE norm2 #-}
 norm2 (Triple x y z) = sqrt $ x ^ 2 + y ^ 2 + z ^ 2
 
 normalize :: Vec3 -> Vec3
-{-# INLINE normalize #-}
 normalize vector = (/ norm) <$> vector
   where
     norm = max (10 ** (-6)) $ norm2 vector
