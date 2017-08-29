@@ -16,6 +16,8 @@ module Util
   , contains
   , randomAngle
   , randomRangeList
+  , fromTripleArray
+  , toTripleArray
   ) where
 
 import Control.Applicative

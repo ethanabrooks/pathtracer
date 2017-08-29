@@ -10,10 +10,11 @@ module Lib
   , specular
   ) where
 
+import qualified Codec.Picture as P
 import Control.Monad
 import Data.Angle (Degrees(..), arccosine)
 import Data.Array.Repa
-       ((:.)(..), Array, D, DIM1, DIM2, U, Z(..), (!), (+^))
+       ((:.)(..), Array, D, DIM3, DIM1, DIM2, U, Z(..), (!), (+^))
 import qualified Data.Array.Repa as R
 import qualified Data.Vector as V
 import Object
@@ -22,7 +23,9 @@ import Object
 import qualified Params
 import qualified System.Random as Random
 import Triple (Triple(..), Vec3, normalize, dot)
-import Util (flatten, white, black, rotateRel, randomRangeList)
+import Util
+       (flatten, white, black, rotateRel, randomRangeList,
+        fromTripleArray)
 
 raysFromCam :: Int -> Array D DIM1 Ray
 raysFromCam iteration =
