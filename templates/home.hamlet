@@ -1,0 +1,8 @@
+$doctype 5
+<html>
+    <head>
+        <title>My Site
+    <body>
+        <p id=original> #{blackByteString}
+        <p id=header>Hello World!
+        <img id=canvas src="#{blackByteString}">
