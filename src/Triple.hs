@@ -8,6 +8,7 @@ module Triple
   , tupleToTriple
   , tripleToTuple
   , tripleToList
+  , listToTriple
   , tSum
   , tAnd
   ) where
@@ -34,6 +35,11 @@ tripleToTuple (Triple x y z) = (x, y, z)
 tripleToList :: Triple t -> [t]
 {-# INLINE tripleToList #-}
 tripleToList (Triple a1 a2 a3) = [a1, a2, a3]
+
+listToTriple :: [t] -> Triple t
+{-# INLINE listToTriple #-}
+listToTriple [a1, a2, a3] = Triple a1 a2 a3
+listToTriple _ = error "Not a valid type to convert to Triple."
 
 tSum
   :: Num a
@@ -69,7 +75,7 @@ norm2 (Triple x y z) = sqrt $ x ^ 2 + y ^ 2 + z ^ 2
 
 normalize :: Vec3 -> Vec3
 {-# INLINE normalize #-}
-normalize vector = fmap (/ norm) vector
+normalize vector = (/ norm) <$> vector
   where
     norm = max (10 ** (-6)) $ norm2 vector
 

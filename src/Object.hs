@@ -136,7 +136,7 @@ objects = V.fromList [infPlane, light]
 ---
 march :: Ray -> Double -> Vec3
 march (Ray (Point origin) (Vector vector) _ _) distance =
-  origin + fmap (distance *) vector
+  origin + ((distance *) <$> vector)
 
 ---
 distanceFrom :: Ray -> Form -> Maybe Double

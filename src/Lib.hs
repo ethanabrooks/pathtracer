@@ -64,7 +64,7 @@ terminalColor bouncesLeft pixel ray = interactWith $ closestObjectTo ray
     interactWith :: Maybe (Object, Double) -> Vec3
     interactWith Nothing = black -- pixel
     interactWith (Just (object, distance))
-      | hitLight = fmap (_emittance object *) pixel
+      | hitLight = (_emittance object *) <$> pixel
       | otherwise = terminalColor (bouncesLeft - 1) pixel' ray'
       where
         hitLight = _emittance object > 0 :: Bool
@@ -81,7 +81,7 @@ closestObjectTo ray = do
     pairs = V.mapMaybe pairWithDistance objectsWithoutLastStruck
     pairWithDistance :: Object -> Maybe (Object, Double)
     -- Nothing if distance is negative or infinite
-    pairWithDistance object = fmap (object, ) (distanceFrom ray $ _form object)
+    pairWithDistance object = (object, ) <$> (distanceFrom ray $ _form object)
     objectsWithoutLastStruck :: V.Vector Object
     objectsWithoutLastStruck =
       case _lastStruck ray of
@@ -115,7 +115,7 @@ specular gen noise vector normal =
   rotateRel (Degrees theta) (Degrees phi) vector'
   where
     normal' = normalize normal
-    projection = fmap (vector `dot` normal' *) normal'
+    projection = (vector `dot` normal' *) <$> normal'
     vector' = vector + (-2) * projection
         -- here we offset the angle of reflection by `noise` but ensure that this does not
         -- cause rays to penetrate the surface of the object

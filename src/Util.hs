@@ -18,17 +18,18 @@ module Util
   , randomRangeList
   ) where
 
-import           Control.Applicative
-import           Data.Angle
-import           Data.Array.Repa       ((:.) (..), Array, D, DIM1, DIM2, U,
-                                        Z (..), (!))
-import qualified Data.Array.Repa       as R
+import Control.Applicative
+import Data.Angle
+import Data.Array.Repa
+       ((:.)(..), Array, D, DIM1, DIM2, DIM3, U, Z(..), (!))
+import qualified Data.Array.Repa as R
 import qualified Data.Array.Repa.Shape as S
-import           Data.Fixed
-import           Debug.Trace
-import           System.IO.Unsafe
-import           System.Random
-import           Triple
+import Data.Fixed
+import Data.Word8
+import Debug.Trace
+import System.IO.Unsafe
+import System.Random
+import Triple
 
 instance Functor Degrees where
   fmap f (Degrees x) = Degrees (f x)
@@ -37,7 +38,9 @@ black = pure 0 :: Vec3
 
 white = pure 1 :: Vec3
 
-inferMissing :: (Show a, Integral a) => [a] -> [a] -> [a]
+inferMissing
+  :: (Show a, Integral a)
+  => [a] -> [a] -> [a]
 {-# INLINE inferMissing #-}
 inferMissing list listWithNeg
   | not valid =
@@ -55,33 +58,45 @@ inferMissing list listWithNeg
              else x)
         listWithNeg
 
-mapIndex ::
-     (S.Shape sh', R.Source r a) => (sh' -> b) -> Array r sh' a -> Array D sh' b
+fromTripleArray :: Array D DIM2 (Triple a) -> Array D DIM3 a
+fromTripleArray array =
+  R.fromFunction
+    (Z :. rows :. cols :. 3)
+    (\(Z :. i :. j :. k) -> tripleToList (array ! (Z :. i :. j)) !! k)
+  where
+    (Z :. rows :. cols) = R.extent array
+
+toTripleArray :: Array D DIM3 a -> Array D DIM2 (Triple a)
+toTripleArray array =
+  R.fromFunction
+    (Z :. rows :. cols)
+    (\(Z :. i :. j) -> listToTriple [array ! (Z :. i :. j :. k) | k <- [0 .. 2]])
+  where
+    (Z :. rows :. cols :. _) = R.extent array
+
+mapIndex
+  :: (S.Shape sh', R.Source r a)
+  => (sh' -> b) -> Array r sh' a -> Array D sh' b
 {-# INLINE mapIndex #-}
 mapIndex f array = R.traverse array id $ const f
 
-reshape ::
-     (R.Source r1 e, S.Shape sh1, S.Shape sh2)
-  => [Int]
-  -> Array r1 sh1 e
-  -> Array D sh2 e
+reshape
+  :: (R.Source r1 e, S.Shape sh1, S.Shape sh2)
+  => [Int] -> Array r1 sh1 e -> Array D sh2 e
 {-# INLINE reshape #-}
 reshape shape array = R.reshape (S.shapeOfList shape') array
   where
     shape' = inferMissing (S.listOfShape (R.extent array)) shape
 
-flatten ::
-     (R.Source r1 e, S.Shape sh1, S.Shape sh2)
-  => Array r1 sh1 e
-  -> Array D sh2 e
+flatten
+  :: (R.Source r1 e, S.Shape sh1, S.Shape sh2)
+  => Array r1 sh1 e -> Array D sh2 e
 {-# INLINE flatten #-}
 flatten array = reshape [-1] array
 
-expandDim ::
-     (R.Source r1 e, S.Shape sh1, S.Shape sh2)
-  => Int
-  -> Array r1 sh1 e
-  -> Array D sh2 e
+expandDim
+  :: (R.Source r1 e, S.Shape sh1, S.Shape sh2)
+  => Int -> Array r1 sh1 e -> Array D sh2 e
 {-# INLINE expandDim #-}
 expandDim dim array = R.reshape shape array
   where
@@ -93,7 +108,7 @@ insertAt n x list = (take n list) ++ [x] ++ (drop n list)
 
 arctan2 :: Double -> Double -> Degrees Double
 {-# INLINE arctan2 #-}
-arctan2 x y = fmap (`mod'` 360) arctan'
+arctan2 x y = (`mod'` 360) <$> arctan'
   where
     arctan = arctangent $ y / x
     arctan'
@@ -131,21 +146,27 @@ rotateAbs (Triple x y z) theta phi = Triple x' y' z'
 
 rotateRel :: Degrees Double -> Degrees Double -> Vec3 -> Vec3
 {-# INLINE rotateRel #-}
-rotateRel theta phi vector = fmap (* length) $ rotateAbs vector' theta' phi'
+rotateRel theta phi vector = (* length) <$> rotateAbs vector' theta' phi'
   where
     vector' = fromSphericalCoords theta phi
     (theta', phi') = toSphericalCoords vector
     length = norm2 vector
 
-aeq :: (Num a, Ord a) => a -> a -> a -> Bool
+aeq
+  :: (Num a, Ord a)
+  => a -> a -> a -> Bool
 {-# INLINE aeq #-}
 aeq tolerance a b = (a - b) * (a - b) < tolerance
 
-vecAeq :: (Ord a, Num a) => a -> Triple a -> Triple a -> Bool
+vecAeq
+  :: (Ord a, Num a)
+  => a -> Triple a -> Triple a -> Bool
 {-# INLINE vecAeq #-}
 vecAeq tolerance a b = tAnd $ liftA2 (aeq tolerance) a b
 
-contains :: Ord t => (t, Bool, t, Bool) -> t -> Bool
+contains
+  :: Ord t
+  => (t, Bool, t, Bool) -> t -> Bool
 {-# INLINE contains #-}
 contains (low, lowInclusive, high, highInclusive) x = aboveLow && belowHigh
   where
@@ -156,13 +177,17 @@ contains (low, lowInclusive, high, highInclusive) x = aboveLow && belowHigh
       | highInclusive = x <= high
       | otherwise = x < high
 
-randomAngle :: (RandomGen b, Random x, Show x) => b -> (x, x) -> (Degrees x, b)
+randomAngle
+  :: (RandomGen b, Random x, Show x)
+  => b -> (x, x) -> (Degrees x, b)
 {-# INLINE randomAngle #-}
 randomAngle gen range = (Degrees angle, gen')
   where
     (angle, gen') = randomR range gen
 
-randomRangeList :: (RandomGen b, Random a, Show a) => b -> [(a, a)] -> ([a], b)
+randomRangeList
+  :: (RandomGen b, Random a, Show a)
+  => b -> [(a, a)] -> ([a], b)
 {-# INLINE randomRangeList #-}
 randomRangeList firstGen ranges = (reverse randoms, lastGen)
   where

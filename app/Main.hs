@@ -34,10 +34,10 @@ toImage
 toImage canvas =
   P.ImageRGB8 $ P.generateImage fromCoords Params.imgHeight Params.imgWidth
   where
-    fromCoords i j = convertToPixel . (fmap round) . rescale $ getColor i j
+    fromCoords i j =
+      convertToPixel . (fmap round) . ((255 *) <$>) $ getColor i j
       where
         getColor i j = canvas ! (Z :. i :. j)
-        rescale = fmap (* 255)
         convertToPixel (Triple r g b) = P.PixelRGB8 r g b
 
 blackCanvas :: Array D DIM2 Vec3
