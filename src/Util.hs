@@ -20,16 +20,16 @@ module Util
 
 import Control.Applicative
 import Data.Angle
+       (Degrees(..), arctangent, arccosine, cosine, sine)
 import Data.Array.Repa
        ((:.)(..), Array, D, DIM1, DIM2, DIM3, U, Z(..), (!))
 import qualified Data.Array.Repa as R
 import qualified Data.Array.Repa.Shape as S
-import Data.Fixed
-import Data.Word8
-import Debug.Trace
-import System.IO.Unsafe
-import System.Random
+import Data.Fixed (mod')
+import qualified System.Random as Random
 import Triple
+       (Vec3, Triple(..), tripleToList, listToTriple, normalize, norm2,
+        tAnd)
 
 instance Functor Degrees where
   fmap f (Degrees x) = Degrees (f x)
@@ -178,15 +178,15 @@ contains (low, lowInclusive, high, highInclusive) x = aboveLow && belowHigh
       | otherwise = x < high
 
 randomAngle
-  :: (RandomGen b, Random x, Show x)
+  :: (Random.RandomGen b, Random.Random x, Show x)
   => b -> (x, x) -> (Degrees x, b)
 {-# INLINE randomAngle #-}
 randomAngle gen range = (Degrees angle, gen')
   where
-    (angle, gen') = randomR range gen
+    (angle, gen') = Random.randomR range gen
 
 randomRangeList
-  :: (RandomGen b, Random a, Show a)
+  :: (Random.RandomGen b, Random.Random a, Show a)
   => b -> [(a, a)] -> ([a], b)
 {-# INLINE randomRangeList #-}
 randomRangeList firstGen ranges = (reverse randoms, lastGen)
@@ -194,7 +194,7 @@ randomRangeList firstGen ranges = (reverse randoms, lastGen)
     (randoms, lastGen) =
       foldl
         (\(xs, gen) range ->
-           let (x, gen') = randomR range gen
+           let (x, gen') = Random.randomR range gen
            in (x : xs, gen'))
         ([], firstGen)
         ranges

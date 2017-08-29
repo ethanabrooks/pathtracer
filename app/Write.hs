@@ -11,22 +11,14 @@ module Main
   ) where
 
 import qualified Codec.Picture as P
-import qualified Codec.Picture.Types as M
 import qualified Data.Array.Repa as R
-import qualified Data.Array.Repa.Repr.Unboxed as U
-import qualified Data.Array.Repa.Shape as S
 
-import Control.Monad
-import Control.Monad.Loops
 import Data.Array.Repa
        ((:.)(..), Array, D, DIM1, DIM2, U, Z(..), (!))
 import Lib (traceCanvas)
 import qualified Params
-import System.Environment (getArgs)
-import System.FilePath (replaceExtension)
-import System.Random
-import Triple
-import Util
+import Triple (Vec3, Triple(..))
+import Util (black, flatten, reshape)
 
 toImage
   :: (R.Source r Vec3)

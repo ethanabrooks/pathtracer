@@ -1,11 +1,5 @@
 module Params where
 
-import Control.Monad
-import Data.Vector (Vector, fromList)
-import Debug.Trace
-import Triple
-import Util
-
 imgHeight = 300 :: Int --1200
 
 imgWidth = 300 :: Int --1200

@@ -1,18 +1,18 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-import Control.Applicative
 import Data.Angle
 import Debug.Trace
 import Lib
 import Object
-import System.Random
+       (Point(..), Vector(..), Ray(..), march, distanceFrom', Form(..))
+import qualified System.Random as Random
 import Test.QuickCheck (quickCheck, quickCheckAll, (==>))
 import qualified Test.QuickCheck as T
 import Triple
 import Util
 
 tolerance :: Double
-tolerance = 1e-9
+tolerance = 1e-8
 
 (~=) :: Double -> Double -> Bool
 (~=) = aeq tolerance
@@ -149,9 +149,17 @@ propSpecular vector normal =
   (projOntoSurface vector) ^~=
   (projOntoSurface vector')
   where
-    vector' = specular (mkStdGen 0) 0 vector normal
+    vector' = specular (Random.mkStdGen 0) 0 vector normal
     normal' = normalize normal
     projOntoSurface v = v - fmap (v `dot` normal' *) normal'
+
+defaultRay =
+  Ray
+  { _origin = Point $ pure 0
+  , _vector = Vector $ pure 0
+  , _gen = Random.mkStdGen 0
+  , _lastStruck = Nothing
+  }
 
 propDistanceFrom' :: Vec3 -> Vec3 -> Vec3 -> Vec3 -> T.Property
 propDistanceFrom' origin vector normal point =
@@ -161,17 +169,18 @@ propDistanceFrom' origin vector normal point =
   0
   where
     intersection = march ray distance
-    ray = Ray origin vector
-    Just distance = distanceFrom' ray $ InfinitePlane normal point
+    ray = defaultRay {_origin = Point origin, _vector = Vector vector}
+    Just distance =
+      distanceFrom' ray $ InfinitePlane (Point point) (Vector normal)
 
 propRandomRangeList :: Float -> Float -> Float -> Float -> Int -> T.Property
 propRandomRangeList l1 h1 l2 h2 seed =
   l1 > h1 && l2 > h2 ==> fst (randomRangeList gen [(l1, h1), (l2, h2)]) ==
   [o1, o2]
   where
-    gen = mkStdGen seed
-    (o1, gen') = randomR (l1, h1) gen :: (Float, StdGen)
-    (o2, gen'') = randomR (l2, h2) gen' :: (Float, StdGen)
+    gen = Random.mkStdGen seed
+    (o1, gen') = Random.randomR (l1, h1) gen :: (Float, Random.StdGen)
+    (o2, gen'') = Random.randomR (l2, h2) gen' :: (Float, Random.StdGen)
 
 main = do
   putStrLn "propCross1"

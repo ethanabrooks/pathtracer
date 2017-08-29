@@ -13,7 +13,6 @@ module Triple
   , tAnd
   ) where
 
-import qualified Codec.Picture as P
 import Control.Applicative
 import Test.QuickCheck (Arbitrary, arbitrary)
 

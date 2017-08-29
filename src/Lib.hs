@@ -11,12 +11,10 @@ module Lib
   ) where
 
 import Control.Monad
-import Data.Angle
+import Data.Angle (Degrees(..), arccosine)
 import Data.Array.Repa
        ((:.)(..), Array, D, DIM1, DIM2, U, Z(..), (!), (+^))
 import qualified Data.Array.Repa as R
-import qualified Data.Array.Repa.Shape as S
-import Data.Maybe
 import qualified Data.Vector as V
 import Object
        (Object(..), Ray(..), Point(..), Vector(..), getColor, getNormal,
