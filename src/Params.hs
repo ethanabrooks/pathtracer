@@ -1,8 +1,8 @@
 module Params where
 
-height = 500 :: Int --1200
+height = 1500 :: Int --1200
 
-width = 500 :: Int --1200
+width = 1500 :: Int --1200
 
 cameraDepth = 300 :: Double
 
