@@ -60,7 +60,7 @@ traceCanvas (iteration, canvasM) = (iteration + 1, canvasM')
     canvasM' = do
       canvas <- canvasM
       let traced = traceCanvas' iteration . flatten $ toTripleArray canvas
-          shape = [Params.imgHeight, Params.imgWidth]
+          shape = [Params.height, Params.width]
           tracedDim3 = fromTripleArray $ (reshape shape) traced
       R.computeP tracedDim3
 
