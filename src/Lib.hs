@@ -26,8 +26,8 @@ import qualified Params
 import qualified System.Random as Random
 import Triple (Triple(..), Vec3, normalize, dot)
 import Util
-       (flatten, white, black, rotateRel, randomRangeList,
-        fromTripleArray)
+       (flatten, reshape, white, black, rotateRel, randomRangeList,
+        toTripleArray, fromTripleArray)
 
 raysFromCam :: Int -> Array D DIM1 Ray
 raysFromCam iteration =
@@ -52,8 +52,17 @@ rayFromCamToPixel iteration (Z :. i :. j) =
     i' = fromIntegral Params.imgHeight / 2 - fromIntegral i
     j' = fromIntegral j - fromIntegral Params.imgWidth / 2
 
-traceCanvas :: (Int, Array D DIM1 Vec3) -> (Int, Array D DIM1 Vec3)
-traceCanvas (iteration, canvas) = (iteration + 1, traceCanvas' iteration canvas)
+traceCanvas
+  :: Monad m
+  => (Int, m (Array U DIM3 Double)) -> (Int, m (Array U DIM3 Double))
+traceCanvas (iteration, canvasM) = (iteration + 1, canvasM')
+  where
+    canvasM' = do
+      canvas <- canvasM
+      let traced = traceCanvas' iteration . flatten $ toTripleArray canvas
+          shape = [Params.imgHeight, Params.imgWidth]
+          tracedDim3 = fromTripleArray $ (reshape shape) traced
+      R.computeP tracedDim3
 
 traceCanvas' :: Int -> Array D DIM1 Vec3 -> Array D DIM1 Vec3
 traceCanvas' iteration canvas = canvas +^ newColor

@@ -4,6 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TupleSections #-}
 
 module Main
   ( main
@@ -13,19 +14,19 @@ module Main
 import qualified Codec.Picture as P
 import qualified Data.Array.Repa as R
 
-import Conversion (repa2ToImage, repa1ToText)
+import Conversion (repa3ToImage, repa1ToText)
 import Data.Array.Repa
        ((:.)(..), Array, D, DIM1, DIM2, U, Z(..), (!))
 import Lib (traceCanvas)
 import qualified Params
 import Triple (Vec3, Triple(..))
-import Util (black, flatten, reshape, fromTripleArray, blackCanvas)
+import Util
+       (black, flatten, reshape, fromTripleArray, startingCanvasM)
 
 main :: IO ()
 main = do
-  (P.savePngImage "image.png" . P.ImageRGB8 . repa2ToImage) canvas'
-  {-putStrLn . show $ repa1ToText flatCanvas-}
-  where
-    (_, flatCanvas) =
-      iterate traceCanvas (0, flatten blackCanvas) !! Params.numIters
-    canvas' = reshape [Params.imgHeight, Params.imgWidth] flatCanvas
+  let (_, flatCanvasM) =
+        iterate traceCanvas (0, startingCanvasM) !! Params.numIters
+  flatCanvas <- flatCanvasM
+  let canvas' = reshape [Params.imgHeight, Params.imgWidth] flatCanvas
+  (P.savePngImage "image.png" . P.ImageRGB8 . repa3ToImage) canvas'

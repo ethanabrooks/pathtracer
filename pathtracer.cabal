@@ -66,6 +66,7 @@ executable write
   build-depends:       base 
                      , pathtracer
                      , repa
+                     , monad-loops
                      , JuicyPixels
   default-language:    Haskell2010
 

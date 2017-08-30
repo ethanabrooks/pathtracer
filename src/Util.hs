@@ -1,4 +1,5 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Util
   ( black
@@ -19,6 +20,7 @@ module Util
   , fromTripleArray
   , toTripleArray
   , blackCanvas
+  , startingCanvasM
   ) where
 
 import Control.Applicative
@@ -41,6 +43,11 @@ instance Functor Degrees where
 black = pure 0 :: Vec3
 
 white = pure 1 :: Vec3
+
+startingCanvasM
+  :: Monad m
+  => m (Array U DIM3 Double)
+startingCanvasM = R.computeP $ fromTripleArray blackCanvas
 
 blackCanvas :: Array D DIM2 Vec3
 blackCanvas =
@@ -65,7 +72,9 @@ inferMissing list listWithNeg
              else x)
         listWithNeg
 
-fromTripleArray :: Array D DIM2 (Triple a) -> Array D DIM3 a
+fromTripleArray
+  :: R.Source r (Triple a)
+  => Array r DIM2 (Triple a) -> Array D DIM3 a
 fromTripleArray array =
   R.fromFunction
     (Z :. rows :. cols :. 3)
@@ -73,7 +82,9 @@ fromTripleArray array =
   where
     (Z :. rows :. cols) = R.extent array
 
-toTripleArray :: Array D DIM3 a -> Array D DIM2 (Triple a)
+toTripleArray
+  :: R.Source r a
+  => Array r DIM3 a -> Array D DIM2 (Triple a)
 toTripleArray array =
   R.fromFunction
     (Z :. rows :. cols)

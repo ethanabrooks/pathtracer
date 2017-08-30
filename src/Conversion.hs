@@ -48,3 +48,6 @@ repa1ToText
   => Array r DIM1 Vec3 -> TL.Text
 repa1ToText =
   imageToText . repa2ToImage . (reshape [Params.imgHeight, Params.imgWidth])
+
+repa3ToText :: Array U DIM3 Double -> TL.Text
+repa3ToText = imageToText . repa3ToImage

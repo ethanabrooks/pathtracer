@@ -1,13 +1,15 @@
 {-# LANGUAGE QuasiQuotes, TemplateHaskell, TypeFamilies,
-  FlexibleContexts, OverloadedStrings #-}
+  FlexibleContexts, OverloadedStrings, TupleSections #-}
 
 module Main where
 
 import qualified Codec.Picture as P
 import Control.Arrow
-import Conversion (imageToText, repa3ToImage, repa1ToText)
+import Conversion
+       (imageToText, repa3ToImage, repa1ToText, repa3ToText)
 import qualified Data.Array.Repa as R
-import Data.Array.Repa ((:.)(..), Array, D, DIM1, DIM3, Z(..), (!))
+import Data.Array.Repa
+       ((:.)(..), Array, D, U, DIM1, DIM3, Z(..), (!))
 import qualified Data.ByteString.Base64
 import qualified Data.ByteString.Lazy.Char8
 import Data.Conduit (($$), (=$), Source, Conduit)
@@ -23,7 +25,8 @@ import Text.Hamlet (hamletFile)
 import Text.Julius (juliusFile)
 import Triple (Triple, Vec3)
 import Util
-       (fromTripleArray, toTripleArray, flatten, reshape, blackCanvas)
+       (fromTripleArray, toTripleArray, flatten, reshape, blackCanvas,
+        startingCanvasM)
 import Yesod.Core
 import qualified Yesod.WebSockets as WS
 
@@ -37,15 +40,15 @@ mkYesod "App" [parseRoutes| / HomeR GET |]
 imgSrcDelimiter :: TL.Text
 imgSrcDelimiter = ","
 
-imageSource :: Source (WS.WebSocketsT Handler) (Int, Array D DIM1 Vec3)
-imageSource = Data.Conduit.List.iterate traceCanvas $ (0, flatten blackCanvas)
+imageSource
+  :: Monad m
+  => Source (WS.WebSocketsT Handler) (Int, m (Array U DIM3 Double))
+imageSource = Data.Conduit.List.iterate traceCanvas (0, startingCanvasM)
 
-rendered :: Array D DIM1 Vec3
-rendered = snd $ iterate traceCanvas (0, flatten blackCanvas) !! 10
-
-renderedText :: TL.Text
-renderedText = formatAsImgSrc (blackText, rendered)
-
+{-rendered :: Array D DIM1 Vec3-}
+{-rendered = snd $ iterate traceCanvas (0, flatten blackCanvas) !! 10-}
+{-renderedText :: TL.Text-}
+{-renderedText = formatAsImgSrc (blackText, rendered)-}
 blackText :: TL.Text
 blackText =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAADUlEQVR4nGNgGAWkAwABNgABVtF/yAAAAABJRU5ErkJggg=="
@@ -53,19 +56,17 @@ blackText =
 getImgSrcPrefix :: TL.Text -> TL.Text
 getImgSrcPrefix = fst . (TL.breakOn imgSrcDelimiter)
 
-formatAsImgSrc :: (TL.Text, Array D DIM1 Vec3) -> TL.Text
-formatAsImgSrc =
-  (getImgSrcPrefix *** repa1ToText) >>> (\(a, b) -> a <> imgSrcDelimiter <> b)
-
-discardIteration :: (TL.Text, (Int, Array D DIM1 Vec3))
-                 -> (TL.Text, Array D DIM1 Vec3)
-discardIteration (text, (iteration, array)) = (text, array)
+formatAsImgSrc
+  :: Monad m
+  => (TL.Text, (Int, m (Array U DIM3 Double))) -> m TL.Text
+formatAsImgSrc (text, (_, arrayM)) = do
+  array <- arrayM
+  return $ getImgSrcPrefix text <> imgSrcDelimiter <> repa3ToText array
 
 getHomeR :: Handler Html
 getHomeR = do
   WS.webSockets $
-    zipSources WS.sourceWS imageSource $$
-    (Data.Conduit.List.map $ formatAsImgSrc . discardIteration) =$
+    zipSources WS.sourceWS imageSource $$ Data.Conduit.List.mapM formatAsImgSrc =$
     WS.sinkWSText
   defaultLayout $ do
     toWidget $(hamletFile "templates/home.hamlet")
