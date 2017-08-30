@@ -33,12 +33,12 @@ raysFromCam :: Int -> Array D DIM1 Ray
 raysFromCam iteration =
   flatten $
   R.fromFunction
-    (Z :. Params.imgHeight :. Params.imgWidth)
+    (Z :. Params.height :. Params.width)
     (rayFromCamToPixel iteration)
 
 uniqueId :: Int -> Int -> Int -> Int
 uniqueId i j iteration =
-  (iteration * Params.imgHeight * Params.imgWidth) + (i * Params.imgWidth + j)
+  (iteration * Params.height * Params.width) + (i * Params.width + j)
 
 rayFromCamToPixel :: Int -> DIM2 -> Ray
 rayFromCamToPixel iteration (Z :. i :. j) =
@@ -49,8 +49,8 @@ rayFromCamToPixel iteration (Z :. i :. j) =
   , _lastStruck = Nothing
   }
   where
-    i' = fromIntegral Params.imgHeight / 2 - fromIntegral i
-    j' = fromIntegral j - fromIntegral Params.imgWidth / 2
+    i' = fromIntegral Params.height / 2 - fromIntegral i
+    j' = fromIntegral j - fromIntegral Params.width / 2
 
 traceCanvas :: (Int, Array D DIM1 Vec3) -> (Int, Array D DIM1 Vec3)
 traceCanvas (iteration, canvas) = (iteration + 1, traceCanvas' iteration canvas)
@@ -81,17 +81,17 @@ closestObjectTo ray = do
   guard . not $ V.null pairs -- not all Nothing
   return $ V.minimumBy distanceOrdering pairs
   where
+    objectsWithoutLastStruck :: V.Vector Object
+    objectsWithoutLastStruck =
+      case _lastStruck ray of
+        Nothing -> objects
+        Just lastStruck -> V.filter (lastStruck /=) objects
     pairs :: V.Vector (Object, Double)
     -- Drop objects with negative and infinite distances
     pairs = V.mapMaybe pairWithDistance objectsWithoutLastStruck
     pairWithDistance :: Object -> Maybe (Object, Double)
     -- Nothing if distance is negative or infinite
     pairWithDistance object = (object, ) <$> (distanceFrom ray $ _form object)
-    objectsWithoutLastStruck :: V.Vector Object
-    objectsWithoutLastStruck =
-      case _lastStruck ray of
-        Nothing -> objects
-        Just lastStruck -> V.filter (lastStruck /=) objects
     distanceOrdering :: (Object, Double) -> (Object, Double) -> Ordering
     distanceOrdering (_, distance1) (_, distance2) = compare distance1 distance2
 

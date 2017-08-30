@@ -28,4 +28,4 @@ main = do
   where
     (_, flatCanvas) =
       iterate traceCanvas (0, flatten blackCanvas) !! Params.numIters
-    canvas' = reshape [Params.imgHeight, Params.imgWidth] flatCanvas
+    canvas' = reshape [Params.height, Params.width] flatCanvas

@@ -23,7 +23,7 @@ repa3ToImage
   :: (R.Source r Double)
   => Array r DIM3 Double -> P.Image P.PixelRGB8
 repa3ToImage canvas =
-  P.generateImage fromCoords Params.imgHeight Params.imgWidth
+  P.generateImage fromCoords Params.height Params.width
   where
     fromCoords i j =
       listToPixelRGB8 [canvas ! (Z :. i :. j :. k) | k <- [0 .. 2]]
@@ -32,7 +32,7 @@ repa2ToImage
   :: (R.Source r Vec3)
   => Array r DIM2 Vec3 -> P.Image P.PixelRGB8
 repa2ToImage canvas =
-  P.generateImage fromCoords Params.imgHeight Params.imgWidth
+  P.generateImage fromCoords Params.height Params.width
   where
     fromCoords i j = listToPixelRGB8 . tripleToList $ canvas ! (Z :. i :. j)
 
@@ -47,4 +47,4 @@ repa1ToText
   :: (R.Source r Vec3)
   => Array r DIM1 Vec3 -> TL.Text
 repa1ToText =
-  imageToText . repa2ToImage . (reshape [Params.imgHeight, Params.imgWidth])
+  imageToText . repa2ToImage . (reshape [Params.height, Params.width])

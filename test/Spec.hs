@@ -188,8 +188,8 @@ propUniqueId i1 j1 iteration1 i2 j2 iteration2 =
   (uniqueId i1' j1' iteration1 == uniqueId i2' j2' iteration2) ==
   (i1' == i2' && j1' == j2' && iteration1 == iteration2)
   where
-    [i1', i2'] = map (`mod` Params.imgHeight) [i1, i2]
-    [j1', j2'] = map (`mod` Params.imgWidth) [j1, j2]
+    [i1', i2'] = map (`mod` Params.height) [i1, i2]
+    [j1', j2'] = map (`mod` Params.width) [j1, j2]
 
 main = do
   putStrLn "propCross1"
