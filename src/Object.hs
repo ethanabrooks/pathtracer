@@ -131,7 +131,7 @@ infPlane2 =
   }
 
 objects :: V.Vector Object
-objects = V.fromList [infPlane, light, disk2]
+objects = V.fromList [infPlane, light]
 
 ---
 march :: Ray -> Double -> Vec3
