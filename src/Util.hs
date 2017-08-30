@@ -51,7 +51,7 @@ startingCanvasM = R.computeP $ fromTripleArray blackCanvas
 
 blackCanvas :: Array D DIM2 Vec3
 blackCanvas =
-  R.fromFunction (Z :. Params.imgHeight :. Params.imgWidth) $ const black
+  R.fromFunction (Z :. Params.height :. Params.width) $ const black
 
 inferMissing
   :: (Show a, Integral a)
