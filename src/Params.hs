@@ -1,8 +1,8 @@
 module Params where
 
-imgHeight = 30 :: Int --1200
+imgHeight = 300 :: Int --1200
 
-imgWidth = 30 :: Int --1200
+imgWidth = 300 :: Int --1200
 
 cameraDepth = 300 :: Double
 
