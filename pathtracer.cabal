@@ -32,12 +32,14 @@ library
 executable web
   hs-source-dirs:      app
   main-is:             Web.hs
-  ghc-options:         -O4 
-                       -threaded 
+  ghc-options:         -Odph 
                        -rtsopts 
-                       -with-rtsopts=-N 
+                       -threaded 
+                       -fno-liberate-case 
                        -funfolding-use-threshold1000 
-                       -funfolding-keeness-factor1000
+                       -funfolding-keeness-factor1000 
+                       -fllvm 
+                       -optlo-O3
   build-depends:       base
                      , pathtracer
                      , yesod-websockets
