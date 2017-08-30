@@ -25,8 +25,7 @@ import Util
 
 main :: IO ()
 main = do
-  let (_, flatCanvasM) =
+  let (_, canvasDim3M) =
         iterate traceCanvas (0, startingCanvasM) !! Params.numIters
-  flatCanvas <- flatCanvasM
-  let canvas' = reshape [Params.imgHeight, Params.imgWidth] flatCanvas
-  (P.savePngImage "image.png" . P.ImageRGB8 . repa3ToImage) canvas'
+  canvasDim3 <- canvasDim3M
+  (P.savePngImage "image.png" . P.ImageRGB8 . repa3ToImage) canvasDim3
