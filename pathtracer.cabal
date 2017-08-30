@@ -57,12 +57,14 @@ executable web
 executable write
   hs-source-dirs:      app
   main-is:             Write.hs
-  ghc-options:         -O4 
-                       -threaded 
+  ghc-options:         -Odph 
                        -rtsopts 
-                       -with-rtsopts=-N 
+                       -threaded 
+                       -fno-liberate-case 
                        -funfolding-use-threshold1000 
-                       -funfolding-keeness-factor1000
+                       -funfolding-keeness-factor1000 
+                       -fllvm 
+                       -optlo-O3
   build-depends:       base 
                      , pathtracer
                      , repa
