@@ -62,6 +62,7 @@ data Form
 instance Eq Form where
   Disk c1 n1 r1 == Disk c2 n2 r2 = c1 == c2 && n1 == n2 && r1 == r2
   InfinitePlane p1 n1 == InfinitePlane p2 n2 = p1 == p2 && n1 == n2
+  _ == _ = False
 
 data Vector =
   Vector (Triple Double)
