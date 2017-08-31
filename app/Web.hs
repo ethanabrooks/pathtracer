@@ -46,9 +46,14 @@ rendered = snd $ iterate traceCanvas (0, flatten blackCanvas) !! 10
 renderedText :: TL.Text
 renderedText = formatAsImgSrc (blackText, rendered)
 
+imgSrcPrefix :: TL.Text
+imgSrcPrefix = "data:image/png;base64,"
+
 blackText :: TL.Text
 blackText =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAADUlEQVR4nGNgGAWkAwABNgABVtF/yAAAAABJRU5ErkJggg=="
+  TL.append
+    imgSrcPrefix
+    "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAADUlEQVR4nGNgGAWkAwABNgABVtF/yAAAAABJRU5ErkJggg=="
 
 getImgSrcPrefix :: TL.Text -> TL.Text
 getImgSrcPrefix = fst . (TL.breakOn imgSrcDelimiter)

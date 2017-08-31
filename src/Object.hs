@@ -86,7 +86,7 @@ infLight =
   , _reflective = True
   , _form =
       InfinitePlane
-      {_point = Point $ Triple 0 0 (10), _normal = Vector $ Triple 0 0 (-1)}
+      {_point = Point $ Triple 0 0 (-10), _normal = Vector $ Triple 0 0 (-1)}
   }
 
 disk2 =
