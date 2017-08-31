@@ -45,13 +45,14 @@ imageSource
   => Source (WS.WebSocketsT Handler) (Int, m (Array U DIM3 Double))
 imageSource = Data.Conduit.List.iterate traceCanvas (0, startingCanvasM)
 
-{-rendered :: Array D DIM1 Vec3-}
-{-rendered = snd $ iterate traceCanvas (0, flatten blackCanvas) !! 10-}
-{-renderedText :: TL.Text-}
-{-renderedText = formatAsImgSrc (blackText, rendered)-}
+imgSrcPrefix :: TL.Text
+imgSrcPrefix = "data:image/png;base64,"
+
 blackText :: TL.Text
 blackText =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAADUlEQVR4nGNgGAWkAwABNgABVtF/yAAAAABJRU5ErkJggg=="
+  TL.append
+    imgSrcPrefix
+    "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAADUlEQVR4nGNgGAWkAwABNgABVtF/yAAAAABJRU5ErkJggg=="
 
 getImgSrcPrefix :: TL.Text -> TL.Text
 getImgSrcPrefix = fst . (TL.breakOn imgSrcDelimiter)

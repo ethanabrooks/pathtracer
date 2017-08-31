@@ -62,6 +62,7 @@ data Form
 instance Eq Form where
   Disk c1 n1 r1 == Disk c2 n2 r2 = c1 == c2 && n1 == n2 && r1 == r2
   InfinitePlane p1 n1 == InfinitePlane p2 n2 = p1 == p2 && n1 == n2
+  _ == _ = False
 
 data Vector =
   Vector (Triple Double)
@@ -85,7 +86,7 @@ infLight =
   , _reflective = True
   , _form =
       InfinitePlane
-      {_point = Point $ Triple 0 0 (10), _normal = Vector $ Triple 1 0 (-1)}
+      {_point = Point $ Triple 0 0 (-10), _normal = Vector $ Triple 0 0 (-1)}
   }
 
 disk2 =
@@ -117,7 +118,7 @@ infPlane =
   , _emittance = 0
   , _reflective = False
   , _form =
-      InfinitePlane {_point = newPoint 0 0 10, _normal = newVector 1 0 (-1)}
+      InfinitePlane {_point = newPoint 0 0 10, _normal = newVector 0 0 (-1)}
   }
 
 infPlane2 =
@@ -131,7 +132,7 @@ infPlane2 =
   }
 
 objects :: V.Vector Object
-objects = V.fromList [infPlane, light, infPlane2, disk2]
+objects = V.fromList [infPlane, infLight]
 
 ---
 march :: Ray -> Double -> Vec3
