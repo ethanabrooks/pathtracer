@@ -38,7 +38,7 @@ raysFromCam iteration =
 
 uniqueId :: Int -> Int -> Int -> Int
 uniqueId i j iteration =
-  (iteration * Params.height * Params.width) + (i * Params.width + j)
+  (0 * Params.height * Params.width) + (i * Params.width + j)
 
 rayFromCamToPixel :: Int -> DIM2 -> Ray
 rayFromCamToPixel iteration (Z :. i :. j) =
@@ -62,7 +62,7 @@ traceCanvas' iteration canvas = canvas +^ newColor
       R.map (terminalColor Params.maxBounces white) (raysFromCam iteration)
 
 ---
-terminalColor :: Int -> Triple Double -> Ray -> Triple Double
+terminalColor :: Int -> Vec3 -> Ray -> Vec3
 terminalColor 0 _ _ = black -- ran out of bounces
 terminalColor bouncesLeft pixel ray = interactWith $ closestObjectTo ray
   where
@@ -74,7 +74,7 @@ terminalColor bouncesLeft pixel ray = interactWith $ closestObjectTo ray
       where
         hitLight = _emittance object > 0 :: Bool
         ray' = bounceRay ray object distance :: Ray
-        pixel' = pixel * getColor object :: Triple Double
+        pixel' = pixel * getColor object :: Vec3
 
 closestObjectTo :: Ray -> Maybe (Object, Double)
 closestObjectTo ray = do
@@ -104,18 +104,14 @@ bounceRay ray@(Ray {_gen = gen}) object distance =
     vector = Vector $ reflectVector gen object $ getVector ray
     (_, gen') = Random.random gen :: (Int, Random.StdGen)
 
-reflectVector :: Random.StdGen -> Object -> Triple Double -> Triple Double
+reflectVector :: Random.StdGen -> Object -> Vec3 -> Vec3
 reflectVector gen object vector
-  | _reflective object = specular gen 0 vector normal
+  | _reflective object = specular gen 100 vector normal
   | otherwise = diffuse gen vector normal
   where
     normal = getNormal $ _form object
 
-specular :: Random.StdGen
-         -> Double
-         -> Triple Double
-         -> Triple Double
-         -> Triple Double
+specular :: Random.StdGen -> Double -> Vec3 -> Vec3 -> Vec3
 specular gen noise vector normal =
   rotateRel (Degrees theta) (Degrees phi) vector'
   where
@@ -129,7 +125,7 @@ specular gen noise vector normal =
     Degrees maxTheta = min angleWithSurface $ Degrees noise
     ([theta, phi], _) = randomRangeList gen [(0, maxTheta), (0, 380)]
 
-diffuse :: Random.StdGen -> Triple Double -> Triple Double -> Triple Double
+diffuse :: Random.StdGen -> Vec3 -> Vec3 -> Vec3
 diffuse gen _ normal = rotateRel (Degrees theta) (Degrees phi) normal
   where
-    ([theta, phi], _) = randomRangeList gen [(0, 90), (0, 380)]
+    ([theta, phi], _) = randomRangeList gen [(9, 90), (0, 380)]
