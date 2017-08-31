@@ -60,9 +60,9 @@ getImgSrcPrefix = fst . (TL.breakOn imgSrcDelimiter)
 formatAsImgSrc
   :: Monad m
   => (TL.Text, (Int, m (Array U DIM3 Double))) -> m TL.Text
-formatAsImgSrc (text, (_, arrayM)) = do
+formatAsImgSrc (_, (_, arrayM)) = do
   array <- arrayM
-  return $ getImgSrcPrefix text <> imgSrcDelimiter <> repa3ToText array
+  return $ imgSrcPrefix <> repa3ToText array
 
 getHomeR :: Handler Html
 getHomeR = do
