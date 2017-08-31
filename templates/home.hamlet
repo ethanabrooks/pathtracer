@@ -4,4 +4,4 @@ $doctype 5
         <title>My Site
     <body>
         <code id=header>
-        <img id=canvas src=#{blackText}>
+        <img id=canvas>

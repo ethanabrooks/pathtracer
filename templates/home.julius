@@ -10,7 +10,7 @@ conn.onmessage = function(e) {
     header.textContent = e.data;
     canvas.src = e.data
 };
-conn.onclose = function () {
+/*conn.onclose = function () {*/
     /*document.write("<p>Connection Closed</p>");*/
-    document.write(canvas.src);
-};
+    /*document.write(canvas.src);*/
+/*};*/
