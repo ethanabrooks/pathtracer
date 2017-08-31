@@ -59,8 +59,7 @@ getImgSrcPrefix :: TL.Text -> TL.Text
 getImgSrcPrefix = fst . (TL.breakOn imgSrcDelimiter)
 
 formatAsImgSrc :: (TL.Text, Array D DIM1 Vec3) -> TL.Text
-formatAsImgSrc =
-  (getImgSrcPrefix *** repa1ToText) >>> (\(a, b) -> a <> imgSrcDelimiter <> b)
+formatAsImgSrc = (imgSrcPrefix <>) . repa1ToText . snd
 
 discardIteration :: (TL.Text, (Int, Array D DIM1 Vec3))
                  -> (TL.Text, Array D DIM1 Vec3)
