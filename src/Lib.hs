@@ -19,6 +19,7 @@ import Data.Array.Repa
        ((:.)(..), Array, D, DIM3, DIM1, DIM2, U, Z(..), (!), (+^))
 import qualified Data.Array.Repa as R
 import qualified Data.Vector as V
+import Debug.Trace
 import Object
        (Object(..), Ray(..), Point(..), Vector(..), getColor, getNormal,
         distanceFrom, objects, march, getVector)
@@ -56,7 +57,7 @@ traceCanvas :: (Int, Array D DIM1 Vec3) -> (Int, Array D DIM1 Vec3)
 traceCanvas (iteration, canvas) = (iteration + 1, traceCanvas' iteration canvas)
 
 traceCanvas' :: Int -> Array D DIM1 Vec3 -> Array D DIM1 Vec3
-traceCanvas' iteration canvas = canvas +^ newColor
+traceCanvas' iteration canvas = newColor -- canvas +^ newColor
   where
     newColor =
       R.map (terminalColor Params.maxBounces white) (raysFromCam iteration)
@@ -67,10 +68,10 @@ terminalColor 0 _ _ = black -- ran out of bounces
 terminalColor bouncesLeft pixel ray = interactWith $ closestObjectTo ray
   where
     interactWith :: Maybe (Object, Double) -> Vec3
-    interactWith Nothing = black -- pixel
+    interactWith Nothing = traceShowId $ Triple 0 0 255 -- black -- pixel
     interactWith (Just (object, distance))
-      | hitLight = (_emittance object *) <$> pixel
-      | otherwise = terminalColor (bouncesLeft - 1) pixel' ray'
+      | hitLight = Triple 255 0 0 -- (_emittance object *) <$> pixel
+      | otherwise = Triple 0 255 0 -- terminalColor (bouncesLeft - 1) pixel' ray'
       where
         hitLight = _emittance object > 0 :: Bool
         ray' = bounceRay ray object distance :: Ray
