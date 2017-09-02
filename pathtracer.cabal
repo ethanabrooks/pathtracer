@@ -61,6 +61,7 @@ executable write
   main-is:             Write.hs
   ghc-options:         -Odph 
                        -rtsopts 
+                       -with-rtsopts=-N
                        -threaded 
                        -fno-liberate-case 
                        -funfolding-use-threshold1000 

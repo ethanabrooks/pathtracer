@@ -89,7 +89,7 @@ infLight =
       {_point = Point $ Triple 0 0 (-10), _normal = Vector $ Triple 0 0 (-1)}
   }
 
-disk2 =
+disk =
   Object
   { _color = Color $ Triple 0 255 0
   , _name = "disk"
@@ -108,7 +108,7 @@ light =
   , _reflective = True
   , _form =
       Disk
-      {_center = newPoint 10 0 (0), _normal = newVector 0 (0) (1), _radius = 2}
+      {_center = newPoint 0 0 (-1), _normal = newVector 0 (0) (1), _radius = 2}
   }
 
 infPlane =
@@ -126,13 +126,13 @@ infPlane2 =
   { _color = newColor 0 255 0
   , _name = "place"
   , _emittance = 0
-  , _reflective = False
+  , _reflective = True
   , _form =
       InfinitePlane {_point = newPoint 0 0 10, _normal = newVector 0 1 (-1)}
   }
 
 objects :: V.Vector Object
-objects = V.fromList [infPlane, infLight]
+objects = V.fromList [infPlane, light]
 
 ---
 march :: Ray -> Double -> Vec3

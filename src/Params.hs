@@ -1,10 +1,10 @@
 module Params where
 
-height = 500 :: Int
+height = 100 :: Int
 
-width = 500 :: Int
+width = 100 :: Int
 
-cameraDepth = 300 :: Double
+cameraDepth = fromIntegral height :: Double
 
 numIters = 10 :: Int
 

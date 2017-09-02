@@ -29,16 +29,16 @@ import Util
        (flatten, white, black, rotateRel, randomRangeList,
         fromTripleArray)
 
+uniqueId :: Int -> Int -> Int -> Int
+uniqueId i j iteration =
+  (iteration * Params.height * Params.width) + (i * Params.width + j)
+
 raysFromCam :: Int -> Array D DIM1 Ray
 raysFromCam iteration =
   flatten $
   R.fromFunction
     (Z :. Params.height :. Params.width)
     (rayFromCamToPixel iteration)
-
-uniqueId :: Int -> Int -> Int -> Int
-uniqueId i j iteration =
-  (iteration * Params.height * Params.width) + (i * Params.width + j)
 
 rayFromCamToPixel :: Int -> DIM2 -> Ray
 rayFromCamToPixel iteration (Z :. i :. j) =
@@ -106,7 +106,7 @@ bounceRay ray@(Ray {_gen = gen}) object distance =
 
 reflectVector :: Random.StdGen -> Object -> Triple Double -> Triple Double
 reflectVector gen object vector
-  | _reflective object = specular gen 0 vector normal
+  | _reflective object = specular gen 10 vector normal
   | otherwise = diffuse gen vector normal
   where
     normal = getNormal $ _form object
