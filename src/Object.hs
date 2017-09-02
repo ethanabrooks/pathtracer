@@ -16,7 +16,7 @@ module Object
 import Control.Monad
 import qualified Data.Vector as V
 import qualified System.Random as Random
-import Triple (Triple(..), Vec3, norm2, dot)
+import Triple (Triple(..), Vec3, norm2, dot, normalize)
 
 data Color =
   Color (Triple Double)
@@ -113,12 +113,12 @@ light =
 
 infPlane =
   Object
-  { _color = newColor 255 0 0
+  { _color = newColor 0 255 0
   , _name = "infinite plane"
   , _emittance = 0
   , _reflective = False
   , _form =
-      InfinitePlane {_point = newPoint 0 0 10, _normal = newVector 0 0 (-1)}
+      InfinitePlane {_point = newPoint 0 0 10, _normal = newVector 1 0 (-1)}
   }
 
 infPlane2 =
@@ -161,7 +161,7 @@ distanceFrom' ray@(Ray (Point origin) (Vector vector) _ _) form =
     --   let point              = march ray distanceFromOrigin
     --   guard
     InfinitePlane (Point point) (Vector normal) ->
-      Just $ ((point - origin) `dot` normal) / (vector `dot` normal)
+      Just $ ((point - origin) `dot` normal) / (vector `dot` normalize normal)
 
 ---
 getNormal :: Form -> Triple Double

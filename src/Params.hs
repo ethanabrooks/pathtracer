@@ -1,8 +1,8 @@
 module Params where
 
-height = 100 :: Int
+height = 500 :: Int
 
-width = 100 :: Int
+width = 500 :: Int
 
 cameraDepth = fromIntegral height :: Double
 
