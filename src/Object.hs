@@ -108,7 +108,10 @@ light =
   , _reflective = True
   , _form =
       Disk
-      {_center = newPoint 10 0 (0), _normal = newVector 0 (0) (1), _radius = 2}
+      { _center = newPoint 10 0 (0)
+      , _normal = newVector 0 (0) (1)
+      , _radius = 200
+      }
   }
 
 infPlane =
@@ -118,7 +121,7 @@ infPlane =
   , _emittance = 0
   , _reflective = False
   , _form =
-      InfinitePlane {_point = newPoint 0 0 10, _normal = newVector 0 0 (-1)}
+      InfinitePlane {_point = newPoint 0 0 300, _normal = newVector 0 0 (-1)}
   }
 
 infPlane2 =
@@ -132,7 +135,7 @@ infPlane2 =
   }
 
 objects :: V.Vector Object
-objects = V.fromList [infPlane, infLight]
+objects = V.fromList [infPlane, light]
 
 ---
 march :: Ray -> Double -> Vec3
