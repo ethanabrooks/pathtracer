@@ -4,7 +4,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE TupleSections #-}
 
 module Main
   ( main
@@ -14,7 +13,7 @@ module Main
 import qualified Codec.Picture as P
 import qualified Data.Array.Repa as R
 
-import Conversion (repa3ToImage, repa1ToText)
+import Conversion (repa3ToImage)
 import Data.Array.Repa
        ((:.)(..), Array, D, DIM1, DIM2, U, Z(..), (!))
 import Lib (traceCanvas)

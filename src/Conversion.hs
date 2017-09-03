@@ -41,6 +41,11 @@ imageToText =
   Data.ByteString.Base64.encode .
   Data.ByteString.Lazy.Char8.toStrict . P.encodePng
 
+repa2ToText
+  :: (R.Source r Vec3)
+  => Array r DIM2 Vec3 -> TL.Text
+repa2ToText = imageToText . repa2ToImage
+
 repa1ToText
   :: (R.Source r Vec3)
   => Array r DIM1 Vec3 -> TL.Text

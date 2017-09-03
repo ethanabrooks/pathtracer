@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE Arrows #-}
 
 module Lib
   ( raysFromCam
@@ -8,7 +9,7 @@ module Lib
   , bounceRay
   , reflectVector
   , specular
-  , uniqueId
+  , startingValues
   ) where
 
 import qualified Codec.Picture as P
@@ -26,26 +27,33 @@ import qualified Params
 import qualified System.Random as Random
 import Triple (Triple(..), Vec3, normalize, dot)
 import Util
-       (flatten, reshape, white, black, rotateRel, randomRangeList,
-        toTripleArray, fromTripleArray)
+       (flatten, white, black, rotateRel, randomRangeList,
+        fromTripleArray)
 
-raysFromCam :: Int -> Array D DIM1 Ray
-raysFromCam iteration =
-  flatten $
-  R.fromFunction
-    (Z :. Params.height :. Params.width)
-    (rayFromCamToPixel iteration)
+blackCanvas :: Array D DIM2 Vec3
+blackCanvas = R.fromFunction (Z :. Params.height :. Params.width) $ const black
 
-uniqueId :: Int -> Int -> Int -> Int
-uniqueId i j iteration =
-  (iteration * Params.height * Params.width) + (i * Params.width + j)
+startingGens :: Array D DIM2 Random.StdGen
+startingGens =
+  R.map Random.mkStdGen $
+  R.fromListUnboxed (Z :. Params.height :. Params.width) .
+  take (Params.height * Params.width) $
+  Random.randoms (Random.mkStdGen 0)
 
-rayFromCamToPixel :: Int -> DIM2 -> Ray
-rayFromCamToPixel iteration (Z :. i :. j) =
+startingValues :: (Array D DIM2 Vec3, Array D DIM2 Random.StdGen)
+startingValues = (blackCanvas, startingGens)
+
+raysFromCam :: Array D DIM2 Random.StdGen -> Array D DIM2 Ray
+raysFromCam gens =
+  R.traverse gens id (\lookup sh -> rayFromCamToPixel (lookup sh) sh)
+
+--(Z :. Params.height * Params.width) (rayFromCamToPixel gen)
+rayFromCamToPixel :: Random.StdGen -> DIM2 -> Ray
+rayFromCamToPixel gen (Z :. i :. j) =
   Ray
   { _origin = Point $ pure 0
   , _vector = Vector $ normalize $ Triple i' j' Params.cameraDepth
-  , _gen = Random.mkStdGen $ uniqueId i j iteration
+  , _gen = gen -- Random.mkStdGen $ uniqueId i j iteration
   , _lastStruck = Nothing
   }
   where
@@ -53,37 +61,27 @@ rayFromCamToPixel iteration (Z :. i :. j) =
     j' = fromIntegral j - fromIntegral Params.width / 2
 
 traceCanvas
-  :: Monad m
-  => (Int, m (Array U DIM3 Double)) -> (Int, m (Array U DIM3 Double))
-traceCanvas (iteration, canvasM) = (iteration + 1, canvasM')
+  :: (Array D DIM2 Vec3, Array D DIM2 Random.StdGen)
+  -> (Array D DIM2 Vec3, Array D DIM2 Random.StdGen)
+traceCanvas (colors, gens) =
+  splitTuple . R.map (terminalColor Params.maxBounces white) . raysFromCam $
+  gens
   where
-    canvasM' = do
-      canvas <- canvasM
-      let traced = traceCanvas' iteration . flatten $ toTripleArray canvas
-          shape = [Params.height, Params.width]
-          tracedDim3 = fromTripleArray $ (reshape shape) traced
-      R.computeP tracedDim3
+    splitTuple array = (colors +^ R.map fst array, R.map snd array)
 
-traceCanvas' :: Int -> Array D DIM1 Vec3 -> Array D DIM1 Vec3
-traceCanvas' iteration canvas = canvas +^ newColor
-  where
-    newColor =
-      R.map (terminalColor Params.maxBounces white) (raysFromCam iteration)
-
----
-terminalColor :: Int -> Triple Double -> Ray -> Triple Double
-terminalColor 0 _ _ = black -- ran out of bounces
+terminalColor :: Int -> Vec3 -> Ray -> (Vec3, Random.StdGen)
+terminalColor 0 _ ray = (black, _gen ray) -- ran out of bounces
 terminalColor bouncesLeft pixel ray = interactWith $ closestObjectTo ray
   where
-    interactWith :: Maybe (Object, Double) -> Vec3
-    interactWith Nothing = black -- pixel
+    interactWith :: Maybe (Object, Double) -> (Vec3, Random.StdGen)
+    interactWith Nothing = (black, _gen ray) -- pixel
     interactWith (Just (object, distance))
-      | hitLight = (_emittance object *) <$> pixel
+      | hitLight = ((_emittance object *) <$> pixel, _gen ray)
       | otherwise = terminalColor (bouncesLeft - 1) pixel' ray'
       where
         hitLight = _emittance object > 0 :: Bool
         ray' = bounceRay ray object distance :: Ray
-        pixel' = pixel * getColor object :: Triple Double
+        pixel' = pixel * getColor object :: Vec3
 
 closestObjectTo :: Ray -> Maybe (Object, Double)
 closestObjectTo ray = do
@@ -107,26 +105,21 @@ closestObjectTo ray = do
 ---
 bounceRay :: Ray -> Object -> Double -> Ray
 bounceRay ray@(Ray {_gen = gen}) object distance =
-  Ray origin vector gen' $ Just object
+  Ray (Point origin) (Vector vector) gen' (Just object)
   where
-    origin = Point $ march ray distance
-    vector = Vector $ reflectVector gen object $ getVector ray
-    (_, gen') = Random.random gen :: (Int, Random.StdGen)
+    origin = march ray distance
+    (vector, gen') = reflectVector gen object $ getVector ray
 
-reflectVector :: Random.StdGen -> Object -> Triple Double -> Triple Double
+reflectVector :: Random.StdGen -> Object -> Vec3 -> (Vec3, Random.StdGen)
 reflectVector gen object vector
-  | _reflective object = specular gen 0 vector normal
+  | _reflective object = specular gen 40 vector normal
   | otherwise = diffuse gen vector normal
   where
     normal = getNormal $ _form object
 
-specular :: Random.StdGen
-         -> Double
-         -> Triple Double
-         -> Triple Double
-         -> Triple Double
+specular :: Random.StdGen -> Double -> Vec3 -> Vec3 -> (Vec3, Random.StdGen)
 specular gen noise vector normal =
-  rotateRel (Degrees theta) (Degrees phi) vector'
+  (rotateRel (Degrees theta) (Degrees phi) vector', gen')
   where
     normal' = normalize normal
     projection = (vector `dot` normal' *) <$> normal'
@@ -136,9 +129,9 @@ specular gen noise vector normal =
     angleWithSurface =
       (Degrees 90) - (arccosine . abs $ normal' `dot` normalize vector)
     Degrees maxTheta = min angleWithSurface $ Degrees noise
-    ([theta, phi], _) = randomRangeList gen [(0, maxTheta), (0, 380)]
+    ([theta, phi], gen') = randomRangeList gen [(0, maxTheta), (0, 380)]
 
-diffuse :: Random.StdGen -> Triple Double -> Triple Double -> Triple Double
-diffuse gen _ normal = rotateRel (Degrees theta) (Degrees phi) normal
+diffuse :: Random.StdGen -> Vec3 -> Vec3 -> (Vec3, Random.StdGen)
+diffuse gen _ normal = (rotateRel (Degrees theta) (Degrees phi) normal, gen')
   where
-    ([theta, phi], _) = randomRangeList gen [(0, 90), (0, 380)]
+    ([theta, phi], gen') = randomRangeList gen [(0, 90), (0, 380)]

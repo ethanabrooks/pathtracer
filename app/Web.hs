@@ -1,15 +1,14 @@
 {-# LANGUAGE QuasiQuotes, TemplateHaskell, TypeFamilies,
-  FlexibleContexts, OverloadedStrings, TupleSections #-}
+  FlexibleContexts, OverloadedStrings #-}
 
 module Main where
 
 import qualified Codec.Picture as P
 import Control.Arrow
-import Conversion
-       (imageToText, repa3ToImage, repa1ToText, repa3ToText)
+import Conversion (repa2ToText)
 import qualified Data.Array.Repa as R
 import Data.Array.Repa
-       ((:.)(..), Array, D, U, DIM1, DIM3, Z(..), (!))
+       ((:.)(..), Array, D, DIM1, DIM2, DIM3, Z(..), (!))
 import qualified Data.ByteString.Base64
 import qualified Data.ByteString.Lazy.Char8
 import Data.Conduit (($$), (=$), Source, Conduit)
@@ -19,8 +18,10 @@ import Data.Fixed (mod')
 import Data.Monoid ((<>))
 import qualified Data.Text.Encoding
 import qualified Data.Text.Lazy as TL
-import Lib (traceCanvas)
+import Lib (traceCanvas, startingValues)
+import Object (Ray)
 import qualified Params
+import qualified System.Random as Random
 import Text.Hamlet (hamletFile)
 import Text.Julius (juliusFile)
 import Triple (Triple, Vec3)

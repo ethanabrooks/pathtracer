@@ -4,7 +4,7 @@ height = 500 :: Int
 
 width = 500 :: Int
 
-cameraDepth = 300 :: Double
+cameraDepth = 500 :: Double
 
 numIters = 10 :: Int
 
