@@ -5,10 +5,10 @@ module Main where
 
 import qualified Codec.Picture as P
 import Control.Arrow
-import Conversion (repa2ToText)
+import Conversion (repa3ToText)
 import qualified Data.Array.Repa as R
 import Data.Array.Repa
-       ((:.)(..), Array, D, DIM1, DIM2, DIM3, Z(..), (!))
+       ((:.)(..), Array, D, DIM1, DIM2, DIM3, Z(..), (!), U)
 import qualified Data.ByteString.Base64
 import qualified Data.ByteString.Lazy.Char8
 import Data.Conduit (($$), (=$), Source, Conduit)
@@ -25,9 +25,7 @@ import qualified System.Random as Random
 import Text.Hamlet (hamletFile)
 import Text.Julius (juliusFile)
 import Triple (Triple, Vec3)
-import Util
-       (fromTripleArray, toTripleArray, flatten, reshape, blackCanvas,
-        startingCanvasM)
+import Util (fromTripleArray, toTripleArray, flatten, reshape)
 import Yesod.Core
 import qualified Yesod.WebSockets as WS
 
@@ -43,8 +41,8 @@ imgSrcDelimiter = ","
 
 imageSource
   :: Monad m
-  => Source (WS.WebSocketsT Handler) (Int, m (Array U DIM3 Double))
-imageSource = Data.Conduit.List.iterate traceCanvas (0, startingCanvasM)
+  => Source (WS.WebSocketsT Handler) (m (Array U DIM3 Double), Array D DIM2 Random.StdGen)
+imageSource = Data.Conduit.List.iterate traceCanvas startingValues
 
 imgSrcPrefix :: TL.Text
 imgSrcPrefix = "data:image/png;base64,"
@@ -60,8 +58,8 @@ getImgSrcPrefix = fst . (TL.breakOn imgSrcDelimiter)
 
 formatAsImgSrc
   :: Monad m
-  => (TL.Text, (Int, m (Array U DIM3 Double))) -> m TL.Text
-formatAsImgSrc (_, (_, arrayM)) = do
+  => (TL.Text, (m (Array U DIM3 Double), a)) -> m TL.Text
+formatAsImgSrc (_, (arrayM, _)) = do
   array <- arrayM
   return $ imgSrcPrefix <> repa3ToText array
 

@@ -1,4 +1,5 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Util
   ( black
@@ -18,7 +19,6 @@ module Util
   , randomRangeList
   , fromTripleArray
   , toTripleArray
-  , startingCanvasM
   ) where
 
 import Control.Applicative

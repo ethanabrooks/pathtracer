@@ -33,6 +33,11 @@ import Util
 blackCanvas :: Array D DIM2 Vec3
 blackCanvas = R.fromFunction (Z :. Params.height :. Params.width) $ const black
 
+startingCanvasM
+  :: Monad m
+  => m (Array U DIM3 Double)
+startingCanvasM = R.computeP $ fromTripleArray blackCanvas
+
 startingGens :: Array D DIM2 Random.StdGen
 startingGens =
   R.map Random.mkStdGen $
@@ -40,8 +45,10 @@ startingGens =
   take (Params.height * Params.width) $
   Random.randoms (Random.mkStdGen 0)
 
-startingValues :: (Array D DIM2 Vec3, Array D DIM2 Random.StdGen)
-startingValues = (blackCanvas, startingGens)
+startingValues
+  :: Monad m
+  => (m (Array U DIM3 Double), Array D DIM2 Random.StdGen)
+startingValues = (startingCanvasM, startingGens)
 
 raysFromCam :: Array D DIM2 Random.StdGen -> Array D DIM2 Ray
 raysFromCam gens =
@@ -61,13 +68,17 @@ rayFromCamToPixel gen (Z :. i :. j) =
     j' = fromIntegral j - fromIntegral Params.width / 2
 
 traceCanvas
-  :: (Array D DIM2 Vec3, Array D DIM2 Random.StdGen)
-  -> (Array D DIM2 Vec3, Array D DIM2 Random.StdGen)
-traceCanvas (colors, gens) =
-  splitTuple . R.map (terminalColor Params.maxBounces white) . raysFromCam $
-  gens
+  :: Monad m
+  => (m (Array U DIM3 Double), Array D DIM2 Random.StdGen)
+  -> (m (Array U DIM3 Double), Array D DIM2 Random.StdGen)
+traceCanvas (colorsM, gens) = (colorsM', gen')
   where
-    splitTuple array = (colors +^ R.map fst array, R.map snd array)
+    newArray =
+      R.map (terminalColor Params.maxBounces white) . raysFromCam $ gens
+    (colors', gen') = (R.map fst newArray, R.map snd newArray)
+    colorsM' = do
+      colors <- colorsM
+      R.computeP $ colors +^ (fromTripleArray colors')
 
 terminalColor :: Int -> Vec3 -> Ray -> (Vec3, Random.StdGen)
 terminalColor 0 _ ray = (black, _gen ray) -- ran out of bounces

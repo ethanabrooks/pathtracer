@@ -16,15 +16,13 @@ import qualified Data.Array.Repa as R
 import Conversion (repa3ToImage)
 import Data.Array.Repa
        ((:.)(..), Array, D, DIM1, DIM2, U, Z(..), (!))
-import Lib (traceCanvas)
+import Lib (traceCanvas, startingValues)
 import qualified Params
 import Triple (Vec3, Triple(..))
-import Util
-       (black, flatten, reshape, fromTripleArray, startingCanvasM)
+import Util (black, flatten, reshape, fromTripleArray)
 
 main :: IO ()
 main = do
-  let (_, canvasDim3M) =
-        iterate traceCanvas (0, startingCanvasM) !! Params.numIters
+  let (canvasDim3M, _) = iterate traceCanvas startingValues !! Params.numIters
   canvasDim3 <- canvasDim3M
   (P.savePngImage "image.png" . P.ImageRGB8 . repa3ToImage) canvasDim3
