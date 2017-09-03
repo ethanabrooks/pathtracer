@@ -48,6 +48,7 @@ executable web
                      , conduit           >= 1.0.15.1
                      , text
                      , base64-bytestring
+                     , random
                      , bytestring
                      , repa
                      , JuicyPixels

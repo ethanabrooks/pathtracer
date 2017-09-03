@@ -18,7 +18,7 @@ tolerance = 1e-8
 (~=) :: Double -> Double -> Bool
 (~=) = aeq tolerance
 
-(^~=) :: Triple Double -> Triple Double -> Bool
+(^~=) :: Vec3 -> Vec3 -> Bool
 (^~=) = vecAeq tolerance
 
 propCross1 :: Vec3 -> Vec3 -> T.Property
@@ -141,7 +141,7 @@ propRotateRel theta phi vector =
     [theta', phi'] = map Degrees [theta, phi]
     vector' = rotateRel theta' phi' vector
 
-propSpecular :: Vec3 -> Triple Double -> T.Property
+propSpecular :: Vec3 -> Vec3 -> T.Property
 propSpecular vector normal =
   not (any ((0 ~=) . norm2) [vector, normal]) ==>
   -- angle of incidence equals angle of reflection
@@ -150,7 +150,7 @@ propSpecular vector normal =
   (projOntoSurface vector) ^~=
   (projOntoSurface vector')
   where
-    vector' = specular (Random.mkStdGen 0) 0 vector normal
+    (vector', _) = specular (Random.mkStdGen 0) 0 vector normal
     normal' = normalize normal
     projOntoSurface v = v - fmap (v `dot` normal' *) normal'
 
@@ -182,14 +182,6 @@ propRandomRangeList l1 h1 l2 h2 seed =
     gen = Random.mkStdGen seed
     (o1, gen') = Random.randomR (l1, h1) gen :: (Float, Random.StdGen)
     (o2, gen'') = Random.randomR (l2, h2) gen' :: (Float, Random.StdGen)
-
-propUniqueId :: Int -> Int -> Int -> Int -> Int -> Int -> Bool
-propUniqueId i1 j1 iteration1 i2 j2 iteration2 =
-  (uniqueId i1' j1' iteration1 == uniqueId i2' j2' iteration2) ==
-  (i1' == i2' && j1' == j2' && iteration1 == iteration2)
-  where
-    [i1', i2'] = map (`mod` Params.height) [i1, i2]
-    [j1', j2'] = map (`mod` Params.width) [j1, j2]
 
 main = do
   putStrLn "propCross1"
@@ -224,8 +216,6 @@ main = do
   quickCheck propFromSpherical2
   putStrLn "propSpecular"
   quickCheck propSpecular
-  putStrLn "propUniqueId"
-  quickCheck propUniqueId
   -- one offs
   putStrLn "propNorm2"
   quickCheck propNorm2

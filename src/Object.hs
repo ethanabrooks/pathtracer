@@ -4,6 +4,7 @@ module Object
   , Ray(..)
   , Point(..)
   , Vector(..)
+  , Color(..)
   , distanceFrom
   , distanceFrom'
   , march
@@ -108,7 +109,7 @@ light =
   , _reflective = True
   , _form =
       Disk
-      {_center = newPoint 0 0 (-1), _normal = newVector 0 (0) (1), _radius = 2}
+      {_center = newPoint 0 0 (-1), _normal = newVector 0 (0) (1), _radius = 20}
   }
 
 infPlane =
@@ -116,9 +117,10 @@ infPlane =
   { _color = newColor 0 255 0
   , _name = "infinite plane"
   , _emittance = 0
-  , _reflective = False
+  , _reflective = True
   , _form =
-      InfinitePlane {_point = newPoint 0 0 10, _normal = newVector 1 0 (-1)}
+      InfinitePlane
+      {_point = newPoint 0 0 100, _normal = newVector (0.5) 0 (-1)}
   }
 
 infPlane2 =

@@ -18,7 +18,6 @@ module Util
   , randomRangeList
   , fromTripleArray
   , toTripleArray
-  , blackCanvas
   ) where
 
 import Control.Applicative
@@ -41,10 +40,6 @@ instance Functor Degrees where
 black = pure 0 :: Vec3
 
 white = pure 1 :: Vec3
-
-blackCanvas :: Array D DIM2 Vec3
-blackCanvas =
-  R.fromFunction (Z :. Params.height :. Params.width) $ const black
 
 inferMissing
   :: (Show a, Integral a)
