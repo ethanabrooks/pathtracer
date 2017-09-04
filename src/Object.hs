@@ -81,7 +81,7 @@ data Ray = Ray
 
 infLight =
   Object
-  { _color = Color $ pure 255
+  { _color = Color $ pure 1
   , _name = "infinite light"
   , _emittance = 5
   , _reflective = True
@@ -92,7 +92,7 @@ infLight =
 
 disk =
   Object
-  { _color = Color $ Triple 0 255 0
+  { _color = Color $ Triple 0 1 0
   , _name = "disk"
   , _emittance = 0
   , _reflective = False
@@ -103,7 +103,7 @@ disk =
 
 light =
   Object
-  { _color = Color $ pure 255
+  { _color = Color $ pure 1
   , _name = "light"
   , _emittance = 2
   , _reflective = True
@@ -114,27 +114,38 @@ light =
 
 infPlane =
   Object
-  { _color = newColor 0 255 0
-  , _name = "infinite plane"
+  { _color = Color . pure $ 1
+  , _name = "plane 1"
   , _emittance = 0
-  , _reflective = True
+  , _reflective = False
   , _form =
       InfinitePlane
-      {_point = newPoint 0 0 100, _normal = newVector (0.5) 0 (-1)}
+      {_point = newPoint 20 (-20) 100, _normal = newVector (0) 0 (-1)}
   }
 
 infPlane2 =
   Object
-  { _color = newColor 0 255 0
-  , _name = "place"
+  { _color = newColor 0.1 1 1
+  , _name = "plane 2"
   , _emittance = 0
-  , _reflective = True
+  , _reflective = False
   , _form =
-      InfinitePlane {_point = newPoint 0 0 10, _normal = newVector 0 1 (-1)}
+      InfinitePlane {_point = newPoint 20 (-20) 100, _normal = newVector 0 1 0}
+  }
+
+infPlane3 =
+  Object
+  { _color = newColor 1 1 0.1
+  , _name = "plane 3"
+  , _emittance = 0
+  , _reflective = False
+  , _form =
+      InfinitePlane
+      {_point = newPoint 20 (-20) 100, _normal = newVector (-1) 0 0}
   }
 
 objects :: V.Vector Object
-objects = V.fromList [infPlane, light]
+objects = V.fromList [infPlane, infPlane2, infPlane3, light]
 
 ---
 march :: Ray -> Double -> Vec3
@@ -172,7 +183,7 @@ getNormal form = normal
     Vector normal = _normal form
 
 getColor :: Object -> Triple Double
-getColor Object {_color = Color color} = color / 255.0
+getColor Object {_color = Color color} = color
 
 getVector :: Ray -> Triple Double
 getVector Ray {_vector = Vector vector} = vector

@@ -5,7 +5,7 @@ module Main where
 
 import qualified Codec.Picture as P
 import Control.Arrow
-import Conversion (repa2ToText)
+import Conversion (repa3ToText)
 import qualified Data.Array.Repa as R
 import Data.Array.Repa
        ((:.)(..), Array, D, DIM1, DIM2, DIM3, Z(..), (!))
@@ -18,7 +18,7 @@ import Data.Fixed (mod')
 import Data.Monoid ((<>))
 import qualified Data.Text.Encoding
 import qualified Data.Text.Lazy as TL
-import Lib (traceCanvas, startingValues)
+import Lib (traces)
 import Object (Ray)
 import qualified Params
 import qualified System.Random as Random
@@ -39,8 +39,8 @@ mkYesod "App" [parseRoutes| / HomeR GET |]
 imgSrcDelimiter :: TL.Text
 imgSrcDelimiter = ","
 
-imageSource :: Source (WS.WebSocketsT Handler) (Array D DIM2 Vec3, Array D DIM2 Random.StdGen)
-imageSource = Data.Conduit.List.iterate traceCanvas startingValues
+imageSource :: Source (WS.WebSocketsT Handler) (Array D DIM3 Double)
+imageSource = Data.Conduit.List.sourceList traces
 
 imgSrcPrefix :: TL.Text
 imgSrcPrefix = "data:image/png;base64,"
@@ -54,8 +54,8 @@ blackText =
 getImgSrcPrefix :: TL.Text -> TL.Text
 getImgSrcPrefix = fst . (TL.breakOn imgSrcDelimiter)
 
-formatAsImgSrc :: (TL.Text, (Array D DIM2 Vec3, b)) -> TL.Text
-formatAsImgSrc = (imgSrcPrefix <>) . repa2ToText . fst . snd
+formatAsImgSrc :: (TL.Text, Array D DIM3 Double) -> TL.Text
+formatAsImgSrc = (imgSrcPrefix <>) . repa3ToText . snd
 
 getHomeR :: Handler Html
 getHomeR = do

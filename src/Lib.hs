@@ -4,12 +4,10 @@
 {-# LANGUAGE Arrows #-}
 
 module Lib
-  ( raysFromCam
-  , traceCanvas
-  , bounceRay
+  ( bounceRay
   , reflectVector
   , specular
-  , startingValues
+  , traces
   ) where
 
 import qualified Codec.Picture as P
@@ -40,14 +38,6 @@ startingGens =
   take (Params.height * Params.width) $
   Random.randoms (Random.mkStdGen 0)
 
-startingValues :: (Array D DIM2 Vec3, Array D DIM2 Random.StdGen)
-startingValues = (blackCanvas, startingGens)
-
-raysFromCam :: Array D DIM2 Random.StdGen -> Array D DIM2 Ray
-raysFromCam gens =
-  R.traverse gens id (\lookup sh -> rayFromCamToPixel (lookup sh) sh)
-
---(Z :. Params.height * Params.width) (rayFromCamToPixel gen)
 rayFromCamToPixel :: Random.StdGen -> DIM2 -> Ray
 rayFromCamToPixel gen (Z :. i :. j) =
   Ray
@@ -60,14 +50,19 @@ rayFromCamToPixel gen (Z :. i :. j) =
     i' = fromIntegral Params.height / 2 - fromIntegral i
     j' = fromIntegral j - fromIntegral Params.width / 2
 
-traceCanvas
-  :: (Array D DIM2 Vec3, Array D DIM2 Random.StdGen)
-  -> (Array D DIM2 Vec3, Array D DIM2 Random.StdGen)
-traceCanvas (colors, gens) =
-  splitTuple . R.map (terminalColor Params.maxBounces white) . raysFromCam $
-  gens
-  where
-    splitTuple array = (colors +^ R.map fst array, R.map snd array)
+traces :: [Array D DIM3 Double]
+traces =
+  map (fromTripleArray . R.map fst) $
+  iterate traceCanvas $ R.zipWith (,) blackCanvas startingGens
+
+traceCanvas :: (Array D DIM2 (Vec3, Random.StdGen))
+            -> (Array D DIM2 (Vec3, Random.StdGen))
+traceCanvas array =
+  R.traverse array id $ \lookup sh ->
+    let (color, gen) = lookup sh
+        ray = rayFromCamToPixel gen sh
+        (newColor, gen') = terminalColor Params.maxBounces white ray
+    in (color + newColor, gen')
 
 terminalColor :: Int -> Vec3 -> Ray -> (Vec3, Random.StdGen)
 terminalColor 0 _ ray = (black, _gen ray) -- ran out of bounces

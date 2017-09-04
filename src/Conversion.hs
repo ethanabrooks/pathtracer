@@ -46,6 +46,11 @@ repa2ToText
   => Array r DIM2 Vec3 -> TL.Text
 repa2ToText = imageToText . repa2ToImage
 
+repa3ToText
+  :: (R.Source r Double)
+  => Array r DIM3 Double -> TL.Text
+repa3ToText = imageToText . repa3ToImage
+
 repa1ToText
   :: (R.Source r Vec3)
   => Array r DIM1 Vec3 -> TL.Text
