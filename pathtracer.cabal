@@ -80,10 +80,9 @@ test-suite pathtracer-test
   main-is:             Spec.hs
   build-depends:       base
                      , pathtracer
-                     , random
                      , QuickCheck
                      , AC-Angle
-                     --, repa
+                     , random
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
 
