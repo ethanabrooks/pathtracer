@@ -47,8 +47,8 @@ startingGens = R.map Random.mkStdGen randomSeeds
       take (Params.height * Params.width) $
       Random.randoms (Random.mkStdGen 0)
 
-startingValues :: (Array D DIM3 Double, Array D DIM2 Random.StdGen)
-startingValues = (fromTripleArray blackCanvas, startingGens)
+startingValues :: (Array D DIM2 Vec3, Array D DIM2 Random.StdGen)
+startingValues = (blackCanvas, startingGens)
 
 startingValues' :: Array D DIM2 (Vec3, Random.StdGen)
 startingValues' = R.zipWith (,) blackCanvas startingGens
@@ -82,7 +82,8 @@ traces' =
 traces
   :: Monad m
   => [m (Array U DIM3 Double)]
-traces = map (R.computeP . fst) $ iterate traceCanvas startingValues
+traces =
+  map (R.computeP . fromTripleArray . fst) $ iterate traceCanvas startingValues
 
 traceCanvas' :: Array D DIM2 (Vec3, Random.StdGen)
              -> Array D DIM2 (Vec3, Random.StdGen)
@@ -94,9 +95,9 @@ traceCanvas' array =
     in (color + newColor, gen')
 
 traceCanvas
-  :: (Array D DIM3 Double, Array D DIM2 Random.StdGen)
-  -> (Array D DIM3 Double, Array D DIM2 Random.StdGen)
-traceCanvas (colors, gens) = (colors +^ (fromTripleArray colors'), gen')
+  :: (Array D DIM2 Vec3, Array D DIM2 Random.StdGen)
+  -> (Array D DIM2 Vec3, Array D DIM2 Random.StdGen)
+traceCanvas (colors, gens) = (colors +^ colors', gen')
   where
     newArray =
       R.map (terminalColor Params.maxBounces white) . raysFromCam $ gens
