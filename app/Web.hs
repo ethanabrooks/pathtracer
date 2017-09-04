@@ -18,7 +18,7 @@ import Data.Fixed (mod')
 import Data.Monoid ((<>))
 import qualified Data.Text.Encoding
 import qualified Data.Text.Lazy as TL
-import Lib (traceCanvas, startingValues)
+import Lib (traceCanvas, startingValues, traces)
 import Object (Ray)
 import qualified Params
 import qualified System.Random as Random
@@ -41,8 +41,8 @@ imgSrcDelimiter = ","
 
 imageSource
   :: Monad m
-  => Source (WS.WebSocketsT Handler) (m (Array U DIM3 Double), Array D DIM2 Random.StdGen)
-imageSource = Data.Conduit.List.iterate traceCanvas startingValues
+  => Source (WS.WebSocketsT Handler) (m (Array U DIM3 Double))
+imageSource = Data.Conduit.List.sourceList traces
 
 imgSrcPrefix :: TL.Text
 imgSrcPrefix = "data:image/png;base64,"
@@ -58,8 +58,8 @@ getImgSrcPrefix = fst . (TL.breakOn imgSrcDelimiter)
 
 formatAsImgSrc
   :: Monad m
-  => (TL.Text, (m (Array U DIM3 Double), a)) -> m TL.Text
-formatAsImgSrc (_, (arrayM, _)) = do
+  => (TL.Text, m (Array U DIM3 Double)) -> m TL.Text
+formatAsImgSrc (_, arrayM) = do
   array <- arrayM
   return $ imgSrcPrefix <> repa3ToText array
 
