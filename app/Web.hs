@@ -1,31 +1,23 @@
 {-# LANGUAGE QuasiQuotes, TemplateHaskell, TypeFamilies,
-  FlexibleContexts, OverloadedStrings #-}
+  OverloadedStrings #-}
 
 module Main where
 
 import qualified Codec.Picture as P
-import Control.Arrow
 import Conversion (repa3ToText)
 import qualified Data.Array.Repa as R
-import Data.Array.Repa
-       ((:.)(..), Array, D, DIM1, DIM2, DIM3, Z(..), (!), U)
+import Data.Array.Repa (Array, DIM3, U)
 import qualified Data.ByteString.Base64
 import qualified Data.ByteString.Lazy.Char8
-import Data.Conduit (($$), (=$), Source, Conduit)
+import Data.Conduit (($$), (=$), Source)
 import Data.Conduit.Internal (zipSources)
 import qualified Data.Conduit.List
-import Data.Fixed (mod')
 import Data.Monoid ((<>))
 import qualified Data.Text.Encoding
 import qualified Data.Text.Lazy as TL
 import Lib (traces)
-import Object (Ray)
-import qualified Params
-import qualified System.Random as Random
 import Text.Hamlet (hamletFile)
 import Text.Julius (juliusFile)
-import Triple (Triple, Vec3)
-import Util (fromTripleArray, toTripleArray, flatten, reshape)
 import Yesod.Core
 import qualified Yesod.WebSockets as WS
 

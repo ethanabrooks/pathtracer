@@ -4,14 +4,14 @@ module Conversion where
 
 import qualified Codec.Picture as P
 import Data.Array.Repa
-       ((:.)(..), Array, D, DIM3, DIM1, DIM2, U, Z(..), (!), (+^))
+       ((:.)(..), Array, DIM1, DIM2, DIM3, U, Z(..), (!))
 import qualified Data.Array.Repa as R
 import qualified Data.ByteString.Base64
 import qualified Data.ByteString.Lazy.Char8
 import qualified Data.Text.Encoding
 import qualified Data.Text.Lazy as TL
 import qualified Params
-import Triple (Triple(..), Vec3, normalize, dot, tripleToList)
+import Triple (Vec3, tripleToList)
 import Util (reshape)
 
 listToPixelRGB8 :: [Double] -> P.PixelRGB8

@@ -24,12 +24,10 @@ module Util
 import Control.Applicative
 import Data.Angle
        (Degrees(..), arctangent, arccosine, cosine, sine)
-import Data.Array.Repa
-       ((:.)(..), Array, D, DIM1, DIM2, DIM3, U, Z(..), (!))
+import Data.Array.Repa ((:.)(..), Array, D, DIM2, DIM3, Z(..), (!))
 import qualified Data.Array.Repa as R
 import qualified Data.Array.Repa.Shape as S
 import Data.Fixed (mod')
-import qualified Params
 import qualified System.Random as Random
 import Triple
        (Vec3, Triple(..), tripleToList, listToTriple, normalize, norm2,

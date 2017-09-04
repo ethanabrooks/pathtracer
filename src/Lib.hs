@@ -4,18 +4,13 @@
 {-# LANGUAGE Arrows #-}
 
 module Lib
-  ( bounceRay
-  , reflectVector
-  , specular
-  , traces
+  ( traces
   ) where
 
 import qualified Codec.Picture as P
-import Control.Arrow
 import Control.Monad
 import Data.Angle (Degrees(..), arccosine)
-import Data.Array.Repa
-       ((:.)(..), Array, D, DIM3, DIM1, DIM2, U, Z(..), (!), (+^))
+import Data.Array.Repa ((:.)(..), Array, D, DIM3, DIM2, U, Z(..))
 import qualified Data.Array.Repa as R
 import qualified Data.Vector as V
 import Object
@@ -25,8 +20,7 @@ import qualified Params
 import qualified System.Random as Random
 import Triple (Triple(..), Vec3, normalize, dot)
 import Util
-       (flatten, white, black, rotateRel, randomRangeList,
-        fromTripleArray)
+       (white, black, rotateRel, randomRangeList, fromTripleArray)
 
 blackCanvas :: Array D DIM2 Vec3
 blackCanvas = R.fromFunction (Z :. Params.height :. Params.width) $ const black
