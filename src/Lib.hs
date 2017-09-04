@@ -4,8 +4,7 @@
 {-# LANGUAGE Arrows #-}
 
 module Lib
-  ( traceCanvas
-  , bounceRay
+  ( bounceRay
   , reflectVector
   , specular
   , traces
