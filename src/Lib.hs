@@ -84,7 +84,7 @@ traces
   => [m (Array U DIM3 Double)]
 traces =
   map (R.computeP . fromTripleArray . (R.map fst)) $
-  iterate traceCanvas startingValues'
+  iterate traceCanvas' startingValues'
 
 traceCanvas' :: Array D DIM2 (Vec3, Random.StdGen)
              -> Array D DIM2 (Vec3, Random.StdGen)
@@ -92,7 +92,7 @@ traceCanvas' array =
   R.traverse array id $ \lookup sh ->
     let (color, gen) = lookup sh
         initialRay = rayFromCamToPixel gen sh
-        (newColor, gen') = terminalColor Params.maxBounces color initialRay
+        (newColor, gen') = terminalColor Params.maxBounces white initialRay
     in (color + newColor, gen')
 
 traceCanvas :: (Array D DIM2 (Vec3, Random.StdGen))
