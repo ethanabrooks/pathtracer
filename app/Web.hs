@@ -18,7 +18,7 @@ import Data.Fixed (mod')
 import Data.Monoid ((<>))
 import qualified Data.Text.Encoding
 import qualified Data.Text.Lazy as TL
-import Lib (traceCanvas, startingValues, traces)
+import Lib (traces)
 import Object (Ray)
 import qualified Params
 import qualified System.Random as Random

@@ -16,7 +16,7 @@ import qualified Data.Array.Repa as R
 import Conversion (repa3ToImage)
 import Data.Array.Repa
        ((:.)(..), Array, D, DIM1, DIM2, U, Z(..), (!))
-import Lib (traceCanvas, startingValues, traces)
+import Lib (traces)
 import qualified Params
 import Triple (Vec3, Triple(..))
 import Util (black, flatten, reshape, fromTripleArray)
