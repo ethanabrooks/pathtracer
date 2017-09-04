@@ -5,6 +5,7 @@
 
 module Lib
   ( traces
+  , specular
   ) where
 
 import qualified Codec.Picture as P

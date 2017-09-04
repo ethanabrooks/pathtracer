@@ -13,7 +13,7 @@ import Triple
 import Util
 
 tolerance :: Double
-tolerance = 1e-8
+tolerance = 1e-7
 
 (~=) :: Double -> Double -> Bool
 (~=) = aeq tolerance
