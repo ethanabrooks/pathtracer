@@ -47,10 +47,8 @@ startingGens = R.map Random.mkStdGen randomSeeds
       take (Params.height * Params.width) $
       Random.randoms (Random.mkStdGen 0)
 
-startingValues
-  :: Monad m
-  => (m (Array U DIM3 Double), Array D DIM2 Random.StdGen)
-startingValues = (startingCanvasM, startingGens)
+startingValues :: (Array D DIM3 Double, Array D DIM2 Random.StdGen)
+startingValues = (fromTripleArray blackCanvas, startingGens)
 
 startingValues' :: Array D DIM2 (Vec3, Random.StdGen)
 startingValues' = R.zipWith (,) blackCanvas startingGens
@@ -74,12 +72,17 @@ rayFromCamToPixel gen (Z :. i :. j) =
   {-:: Monad m-}
   {-=> [m (Array U DIM3 Double)]-}
 
+traces'
+  :: Monad m
+  => [m (Array U DIM3 Double)]
+traces' =
+  map (R.computeP . fromTripleArray . (R.map fst)) $
+  iterate traceCanvas' startingValues'
+
 traces
   :: Monad m
   => [m (Array U DIM3 Double)]
-traces =
-  map (R.computeP . fromTripleArray . (R.map fst)) $
-  iterate traceCanvas' startingValues'
+traces = map (R.computeP . fst) $ iterate traceCanvas startingValues
 
 traceCanvas' :: Array D DIM2 (Vec3, Random.StdGen)
              -> Array D DIM2 (Vec3, Random.StdGen)
@@ -87,21 +90,17 @@ traceCanvas' array =
   R.traverse array id $ \lookup sh ->
     let (color, gen) = lookup sh
         initialRay = rayFromCamToPixel gen sh
-        newColor = terminalColor Params.maxBounces color initialRay
-    in first (color +) newColor
+        (newColor, gen') = terminalColor Params.maxBounces color initialRay
+    in (color + newColor, gen')
 
 traceCanvas
-  :: Monad m
-  => (m (Array U DIM3 Double), Array D DIM2 Random.StdGen)
-  -> (m (Array U DIM3 Double), Array D DIM2 Random.StdGen)
-traceCanvas (colorsM, gens) = (colorsM', gen')
+  :: (Array D DIM3 Double, Array D DIM2 Random.StdGen)
+  -> (Array D DIM3 Double, Array D DIM2 Random.StdGen)
+traceCanvas (colors, gens) = (colors +^ (fromTripleArray colors'), gen')
   where
     newArray =
       R.map (terminalColor Params.maxBounces white) . raysFromCam $ gens
     (colors', gen') = (R.map fst newArray, R.map snd newArray)
-    colorsM' = do
-      colors <- colorsM
-      R.computeP $ colors +^ (fromTripleArray colors')
 
 terminalColor :: Int -> Vec3 -> Ray -> (Vec3, Random.StdGen)
 terminalColor 0 _ ray = (black, _gen ray) -- ran out of bounces
