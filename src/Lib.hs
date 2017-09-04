@@ -83,7 +83,8 @@ traces
   :: Monad m
   => [m (Array U DIM3 Double)]
 traces =
-  map (R.computeP . fromTripleArray . fst) $ iterate traceCanvas startingValues
+  map (R.computeP . fromTripleArray . (R.map fst)) $
+  iterate traceCanvas startingValues'
 
 traceCanvas' :: Array D DIM2 (Vec3, Random.StdGen)
              -> Array D DIM2 (Vec3, Random.StdGen)
@@ -94,11 +95,11 @@ traceCanvas' array =
         (newColor, gen') = terminalColor Params.maxBounces color initialRay
     in (color + newColor, gen')
 
-traceCanvas
-  :: (Array D DIM2 Vec3, Array D DIM2 Random.StdGen)
-  -> (Array D DIM2 Vec3, Array D DIM2 Random.StdGen)
-traceCanvas (colors, gens) = (colors +^ colors', gen')
+traceCanvas :: (Array D DIM2 (Vec3, Random.StdGen))
+            -> (Array D DIM2 (Vec3, Random.StdGen))
+traceCanvas array = R.zipWith (,) (colors +^ colors') gen'
   where
+    (colors, gens) = (R.map fst array, R.map snd array)
     newArray =
       R.map (terminalColor Params.maxBounces white) . raysFromCam $ gens
     (colors', gen') = (R.map fst newArray, R.map snd newArray)
