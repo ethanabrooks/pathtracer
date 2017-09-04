@@ -34,6 +34,7 @@ executable web
   main-is:             Web.hs
   ghc-options:         -Odph 
                        -rtsopts 
+                       -with-rtsopts=-N
                        -threaded 
                        -fno-liberate-case 
                        -funfolding-use-threshold1000 
