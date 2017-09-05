@@ -25,9 +25,9 @@ library
                      , QuickCheck
                      , text
                      , base64-bytestring
-                     , bytestring
+                     , bytestring 
+                     , conduit
   default-language:    Haskell2010
-
 
 executable web
   hs-source-dirs:      app
