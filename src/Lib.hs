@@ -3,6 +3,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE Arrows #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE Strict #-}
 
 module Lib
   ( traces

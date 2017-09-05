@@ -1,3 +1,5 @@
+{-# LANGUAGE Strict #-}
+
 module Triple
   ( Triple(..)
   , Vec3

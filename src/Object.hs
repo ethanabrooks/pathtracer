@@ -1,3 +1,5 @@
+{-# LANGUAGE Strict #-}
+
 module Object
   ( Object(..)
   , Form(..)
