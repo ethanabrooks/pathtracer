@@ -1,16 +1,36 @@
 var conn = new WebSocket("ws://localhost:3000/");
-header = document.getElementById('header');
+
+clockElement = document.getElementById('clock');
+clockNum = 0
+
+time = document.getElementById('time');
+count = 0;
+tick = newTick();
+
 canvas = document.getElementById('canvas');
 conn.onopen = function() {
     setInterval(function() { 
         conn.send(canvas.src);
-      }, 50);
+        incrementClock();
+      }, 1000);
 };
 conn.onmessage = function(e) {
-    header.textContent = e.data;
-    canvas.src = e.data
+    canvas.src = e.data;
+    time.innerHTML += "<br>" + count + ": " + secondsSince(tick).toString();
+    tick = newTick();
+    count += 1;
+    setClock(0);
 };
-/*conn.onclose = function () {*/
-    /*document.write("<p>Connection Closed</p>");*/
-    /*document.write(canvas.src);*/
-/*};*/
+function newTick() {
+  return new Date().getTime();
+}
+function secondsSince(tick) {
+  return (newTick() - tick) / 1000;
+}
+function setClock(num) {
+  clockNum = num;
+  clock.innerHTML = clockNum;
+}
+function incrementClock() {
+  setClock(clockNum + 1);
+}
