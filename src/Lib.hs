@@ -2,10 +2,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE Arrows #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Lib
   ( traces
   , specular
+  , traceSource
   ) where
 
 import qualified Codec.Picture as P
@@ -13,6 +15,8 @@ import Control.Monad
 import Data.Angle (Degrees(..), arccosine)
 import Data.Array.Repa ((:.)(..), Array, D, DIM3, DIM2, U, Z(..))
 import qualified Data.Array.Repa as R
+import Data.Conduit (($$), (=$=), Source, Producer, Conduit)
+import qualified Data.Conduit.List
 import qualified Data.Vector as V
 import Object
        (Object(..), Ray(..), Point(..), Vector(..), getColor, getNormal,
@@ -45,6 +49,16 @@ rayFromCamToPixel gen (Z :. i :. j) =
   where
     i' = fromIntegral Params.height / 2 - fromIntegral i
     j' = fromIntegral j - fromIntegral Params.width / 2
+
+traceSource
+  :: Monad m
+  => Source m (Array U DIM3 Double)
+traceSource =
+  (Data.Conduit.List.iterate traceCanvas startValues) =$=
+  (Data.Conduit.List.mapM computeArray3)
+  where
+    startValues = R.zipWith (,) blackCanvas startingGens
+    computeArray3 = R.computeP . fromTripleArray . (R.map fst)
 
 traces
   :: Monad m
