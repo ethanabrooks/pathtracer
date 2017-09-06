@@ -6,6 +6,6 @@ width = 500 :: Int
 
 cameraDepth = 500 :: Double
 
-numIters = 20 :: Int
+numIters = 10 :: Int
 
 maxBounces = 30 :: Int
