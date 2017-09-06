@@ -61,11 +61,21 @@ traceSource =
   where
     startValues = R.zipWith (,) blackCanvas startingGens
     computeArray3 = R.computeP . fromTripleArray . (R.map fst)
+             {--> Array D DIM2 (Color, Random.StdGen)-}
 
-fireRay :: Random.StdGen -> Int -> Int -> (Random.StdGen, Color)
-fireRay gen i j = first _gen $ iterate bounceRay' startValues !! Params.numIters
+tracedCanvas
+  :: Monad m
+  => m (Array U DIM3 Double)
+tracedCanvas =
+  R.computeP . fromTripleArray $ R.traverse startingGens id traceRay'
   where
-    startValues = (rayFromCamToPixel gen (Z :. i :. j), Color white)
+    traceRay' lookup sh = traceRay (lookup sh) sh
+
+traceRay :: Random.StdGen -> DIM2 -> Vec3
+traceRay gen sh = color'
+  where
+    (Color color', ray') = iterate bounceRay' startValues !! Params.numIters
+    startValues = (Color white, rayFromCamToPixel gen sh)
 
 traces
   :: Monad m
@@ -100,15 +110,14 @@ bounceRay bouncesLeft pixel ray = interactWith $ closestObjectTo ray
         ray' = Ray (Point origin') (Vector vector) gen' (Just object)
         pixel' = pixel * getColor object :: Vec3
 
-bounceRay' :: (Ray, Color) -> (Ray, Color)
-bounceRay' (ray, Color color) =
-  second Color . interactWith $ closestObjectTo ray
+bounceRay' :: (Color, Ray) -> (Color, Ray)
+bounceRay' (Color color, ray) = first Color . interactWith $ closestObjectTo ray
   where
-    interactWith :: Maybe (Object, Double) -> (Ray, Vec3)
-    interactWith Nothing = (ray, black) -- pixel
+    interactWith :: Maybe (Object, Double) -> (Vec3, Ray)
+    interactWith Nothing = (black, ray) -- pixel
     interactWith (Just (object, distance))
-      | hitLight = (ray, (_emittance object *) <$> color)
-      | otherwise = (ray', color * getColor object)
+      | hitLight = ((_emittance object *) <$> color, ray)
+      | otherwise = (color * getColor object, ray')
       where
         hitLight = _emittance object > 0 :: Bool
         origin' = march ray distance
