@@ -3,9 +3,7 @@
 {-# LANGUAGE Strict #-}
 
 module Util
-  ( black
-  , white
-  , flatten
+  ( flatten
   , mapIndex
   , toSphericalCoords
   , fromSphericalCoords
@@ -36,10 +34,6 @@ import Triple
 
 instance Functor Degrees where
   fmap f (Degrees x) = Degrees (f x)
-
-black = pure 0 :: Vec3
-
-white = pure 1 :: Vec3
 
 inferMissing
   :: (Show a, Integral a)

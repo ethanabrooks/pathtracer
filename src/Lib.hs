@@ -6,7 +6,7 @@
 {-# LANGUAGE Strict #-}
 
 module Lib
-  ( traces
+  ( tracedCanvas
   , specular
   , traceSource
   ) where
@@ -22,14 +22,13 @@ import qualified Data.Conduit.List
 import qualified Data.Vector as V
 import Object
        (Object(..), Ray(..), Point(..), Vector(..), Color(..), getColor,
-        getNormal, distanceFrom, objects, march, getVector)
+        getNormal, distanceFrom, objects, march, getVector, black, white)
 import qualified Params
 import qualified System.Random as Random
 import Triple (Triple(..), Vec3, normalize, dot)
-import Util
-       (white, black, rotateRel, randomRangeList, fromTripleArray)
+import Util (rotateRel, randomRangeList, fromTripleArray)
 
-blackCanvas :: Array D DIM2 Vec3
+blackCanvas :: Array D DIM2 Color
 blackCanvas = R.fromFunction (Z :. Params.height :. Params.width) $ const black
 
 startingGens :: Array D DIM2 Random.StdGen
@@ -52,6 +51,9 @@ rayFromCamToPixel gen (Z :. i :. j) =
     i' = fromIntegral Params.height / 2 - fromIntegral i
     j' = fromIntegral j - fromIntegral Params.width / 2
 
+colorToVec3 :: Color -> Vec3
+colorToVec3 (Color t) = t
+
 traceSource
   :: Monad m
   => Source m (Array U DIM3 Double)
@@ -60,32 +62,10 @@ traceSource =
   (Data.Conduit.List.mapM computeArray3)
   where
     startValues = R.zipWith (,) blackCanvas startingGens
-    computeArray3 = R.computeP . fromTripleArray . (R.map fst)
-             {--> Array D DIM2 (Color, Random.StdGen)-}
+    computeArray3 = R.computeP . fromTripleArray . (R.map $ colorToVec3 . fst)
 
-tracedCanvas
-  :: Monad m
-  => m (Array U DIM3 Double)
-tracedCanvas =
-  R.computeP . fromTripleArray $ R.traverse startingGens id traceRay'
-  where
-    traceRay' lookup sh = traceRay (lookup sh) sh
-
-traceRay :: Random.StdGen -> DIM2 -> Vec3
-traceRay gen sh = color'
-  where
-    (Color color', ray') = iterate bounceRay' startValues !! Params.numIters
-    startValues = (Color white, rayFromCamToPixel gen sh)
-
-traces
-  :: Monad m
-  => [m (Array U DIM3 Double)]
-traces =
-  map (R.computeP . fromTripleArray . (R.map fst)) $
-  iterate traceCanvas $ R.zipWith (,) blackCanvas startingGens
-
-traceCanvas :: Array D DIM2 (Vec3, Random.StdGen)
-            -> Array D DIM2 (Vec3, Random.StdGen)
+traceCanvas :: Array D DIM2 (Color, Random.StdGen)
+            -> Array D DIM2 (Color, Random.StdGen)
 traceCanvas array =
   R.traverse array id $ \lookup sh ->
     let (color, gen) = lookup sh
@@ -93,36 +73,39 @@ traceCanvas array =
         (newColor, gen') = bounceRay Params.maxBounces white initialRay
     in (color + newColor, gen')
 
-bounceRay :: Int -> Vec3 -> Ray -> (Vec3, Random.StdGen)
+tracedCanvas
+  :: Monad m
+  => m (Array U DIM3 Double)
+tracedCanvas =
+  R.computeP . fromTripleArray . R.traverse startingGens id $ \lookup sh ->
+    let traceRay' = uncurry $ traceRay sh
+        gen = lookup sh
+        (finalColor, _) = iterate traceRay' (black, gen) !! Params.numIters
+    in colorToVec3 finalColor
+
+traceRay :: DIM2 -> Color -> Random.StdGen -> (Color, Random.StdGen)
+traceRay sh color gen = (color + color', gen')
+  where
+    (color', gen') = bounceRay Params.numIters white $ rayFromCamToPixel gen sh
+    startValues = (white, rayFromCamToPixel gen sh)
+
+bounceRay :: Int -> Color -> Ray -> (Color, Random.StdGen)
 bounceRay 0 _ ray = (black, _gen ray) -- ran out of bounces
-bounceRay bouncesLeft pixel ray = interactWith $ closestObjectTo ray
+bounceRay bouncesLeft color ray = interactWith $ closestObjectTo ray
   where
     gen = _gen ray
-    interactWith :: Maybe (Object, Double) -> (Vec3, Random.StdGen)
-    interactWith Nothing = (black, gen) -- pixel
+    interactWith :: Maybe (Object, Double) -> (Color, Random.StdGen)
+    interactWith Nothing = (black, gen) -- color
     interactWith (Just (object, distance))
-      | hitLight = ((_emittance object *) <$> pixel, gen)
+      | hitLight = (lightUp color, gen)
       | otherwise = bounceRay (bouncesLeft - 1) pixel' ray'
       where
         hitLight = _emittance object > 0 :: Bool
+        lightUp (Color color) = Color $ (_emittance object *) <$> color
         origin' = march ray distance
         (vector, gen') = reflectVector gen object $ getVector ray
         ray' = Ray (Point origin') (Vector vector) gen' (Just object)
-        pixel' = pixel * getColor object :: Vec3
-
-bounceRay' :: (Color, Ray) -> (Color, Ray)
-bounceRay' (Color color, ray) = first Color . interactWith $ closestObjectTo ray
-  where
-    interactWith :: Maybe (Object, Double) -> (Vec3, Ray)
-    interactWith Nothing = (black, ray) -- pixel
-    interactWith (Just (object, distance))
-      | hitLight = ((_emittance object *) <$> color, ray)
-      | otherwise = (color * getColor object, ray')
-      where
-        hitLight = _emittance object > 0 :: Bool
-        origin' = march ray distance
-        (vector, gen') = reflectVector (_gen ray) object $ getVector ray
-        ray' = Ray (Point origin') (Vector vector) gen' (Just object)
+        pixel' = color * getColor object :: Color
 
 closestObjectTo :: Ray -> Maybe (Object, Double)
 closestObjectTo ray = do

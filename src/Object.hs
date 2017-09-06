@@ -1,4 +1,5 @@
 {-# LANGUAGE Strict #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Object
   ( Object(..)
@@ -14,6 +15,8 @@ module Object
   , getVector
   , getColor
   , objects
+  , black
+  , white
   ) where
 
 import Control.Monad
@@ -21,13 +24,15 @@ import qualified Data.Vector as V
 import qualified System.Random as Random
 import Triple (Triple(..), Vec3, norm2, dot, normalize)
 
-data Color =
-  Color (Triple Double)
+newtype Color =
+  Color Vec3
+  deriving (Eq, Num)
+
+black = Color $ pure 0
+
+white = Color $ pure 1
 
 newColor a b c = Color $ Triple a b c
-
-instance Eq Color where
-  Color c1 == Color c2 = c1 == c2
 
 data Object = Object
   { _color :: Color
@@ -41,14 +46,9 @@ instance Eq Object where
   Object c1 e1 r1 f1 n1 == Object c2 e2 r2 f2 n2 =
     c1 == c2 && e1 == e2 && r1 == r2 && f1 == f2 && n1 == n2
 
-data Point =
-  Point (Triple Double)
-
-instance Eq Point where
-  Point p1 == Point p2 = p1 == p2
-
-instance Eq Vector where
-  Vector v1 == Vector v2 = v1 == v2
+newtype Point =
+  Point Vec3
+  deriving (Eq)
 
 data Form
   = Disk { _center :: Point
@@ -67,8 +67,9 @@ instance Eq Form where
   InfinitePlane p1 n1 == InfinitePlane p2 n2 = p1 == p2 && n1 == n2
   _ == _ = False
 
-data Vector =
-  Vector (Triple Double)
+newtype Vector =
+  Vector Vec3
+  deriving (Eq)
 
 newPoint a b c = Point (Triple a b c)
 
@@ -184,8 +185,8 @@ getNormal form = normal
   where
     Vector normal = _normal form
 
-getColor :: Object -> Triple Double
-getColor Object {_color = Color color} = color
+getColor :: Object -> Color
+getColor Object {_color = color} = color
 
 getVector :: Ray -> Triple Double
 getVector Ray {_vector = Vector vector} = vector
