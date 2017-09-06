@@ -105,7 +105,8 @@ bounceRay bouncesLeft color ray = interactWith $ closestObjectTo ray
         origin' = march ray distance
         (vector, gen') = reflectVector gen object $ getVector ray
         ray' = Ray (Point origin') (Vector vector) gen' (Just object)
-        pixel' = color * getColor object :: Color
+        brdf = -(normalize (getVector ray) `dot` normalize (getNormal $ _form object))
+        pixel' = Color (pure brdf) * color * getColor object :: Color
 
 closestObjectTo :: Ray -> Maybe (Object, Double)
 closestObjectTo ray = do
