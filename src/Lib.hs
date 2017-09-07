@@ -44,7 +44,7 @@ rayFromCamToPixel gen (Z :. i :. j) =
   Ray
   { _origin = Point $ pure 0
   , _vector = Vector $ normalize $ Triple i' j' Params.cameraDepth
-  , _gen = gen -- Random.mkStdGen $ uniqueId i j iteration
+  , _gen = gen
   , _lastStruck = Nothing
   }
   where
@@ -65,31 +65,32 @@ traces
   :: Monad m
   => [m (Array U DIM3 Double)]
 traces =
-  map (R.computeP . fromTripleArray . (R.map fst)) $
-  iterate traceCanvas $ R.zipWith (,) blackCanvas startingGens
+  map (R.computeP . fromTripleArray . (R.map fst)) . iterate traceCanvas $
+  R.zipWith (,) blackCanvas startingGens
 
 traceCanvas :: Array D DIM2 (Vec3, Random.StdGen)
             -> Array D DIM2 (Vec3, Random.StdGen)
 traceCanvas array =
   R.traverse array id $ \lookup sh ->
     let (color, gen) = lookup sh
-        initialRay = rayFromCamToPixel gen sh
-        (newColor, gen') = terminalColor Params.maxBounces white initialRay
-    in (color + newColor, gen')
+        (color', gen') =
+          traceRay Params.maxBounces white $ rayFromCamToPixel gen sh
+    in (color + color', gen')
 
-terminalColor :: Int -> Vec3 -> Ray -> (Vec3, Random.StdGen)
-terminalColor 0 _ ray = (black, _gen ray) -- ran out of bounces
-terminalColor bouncesLeft pixel ray = interactWith $ closestObjectTo ray
+traceRay :: Int -> Vec3 -> Ray -> (Vec3, Random.StdGen)
+traceRay 0 _ ray = (black, _gen ray) -- ran out of bounces
+traceRay bouncesLeft pixel ray = interactWith $ closestObjectTo ray
   where
     interactWith :: Maybe (Object, Double) -> (Vec3, Random.StdGen)
     interactWith Nothing = (black, _gen ray) -- pixel
     interactWith (Just (object, distance))
       | hitLight = ((_emittance object *) <$> pixel, _gen ray)
-      | otherwise = terminalColor (bouncesLeft - 1) pixel' ray'
+      | otherwise = traceRay (bouncesLeft - 1) pixel' ray'
       where
         hitLight = _emittance object > 0 :: Bool
         ray' = bounceRay ray object distance :: Ray
-        pixel' = pixel * getColor object :: Vec3
+        brdf = (getVector ray') `dot` (getNormal $ _form object)
+        pixel' = pure brdf * pixel * getColor object :: Vec3
 
 closestObjectTo :: Ray -> Maybe (Object, Double)
 closestObjectTo ray = do
