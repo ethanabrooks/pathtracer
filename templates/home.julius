@@ -1,36 +1,24 @@
 var conn = new WebSocket("ws://localhost:3000/");
 
-clockElement = document.getElementById('clock');
-clockNum = 0
-
 time = document.getElementById('time');
 count = 0;
 tick = newTick();
 
-canvas = document.getElementById('canvas');
+sum = document.getElementById('sum');
 conn.onopen = function() {
     setInterval(function() { 
         conn.send(canvas.src);
-        incrementClock();
       }, 1000);
 };
 conn.onmessage = function(e) {
-    canvas.src = e.data;
+    sum.innerHTML = e.data;
     time.innerHTML += "<br>" + count + ": " + secondsSince(tick).toString();
     tick = newTick();
     count += 1;
-    setClock(0);
 };
 function newTick() {
   return new Date().getTime();
 }
 function secondsSince(tick) {
   return (newTick() - tick) / 1000;
-}
-function setClock(num) {
-  clockNum = num;
-  clock.innerHTML = clockNum;
-}
-function incrementClock() {
-  setClock(clockNum + 1);
 }
