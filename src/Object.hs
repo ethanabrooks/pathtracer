@@ -21,13 +21,10 @@ import qualified Data.Vector as V
 import qualified System.Random as Random
 import Triple (Triple(..), Vec3, norm2, dot, normalize)
 
-data Color =
-  Color (Triple Double)
+newtype Color = Color Vec3 
+  deriving (Eq)
 
 newColor a b c = Color $ Triple a b c
-
-instance Eq Color where
-  Color c1 == Color c2 = c1 == c2
 
 data Object = Object
   { _color :: Color
@@ -41,14 +38,11 @@ instance Eq Object where
   Object c1 e1 r1 f1 n1 == Object c2 e2 r2 f2 n2 =
     c1 == c2 && e1 == e2 && r1 == r2 && f1 == f2 && n1 == n2
 
-data Point =
-  Point (Triple Double)
+newtype Point =
+  Point (Triple Double) deriving (Eq)
 
-instance Eq Point where
-  Point p1 == Point p2 = p1 == p2
-
-instance Eq Vector where
-  Vector v1 == Vector v2 = v1 == v2
+newtype Vector =
+  Vector Vec3 deriving Eq
 
 data Form
   = Disk { _center :: Point
@@ -67,8 +61,6 @@ instance Eq Form where
   InfinitePlane p1 n1 == InfinitePlane p2 n2 = p1 == p2 && n1 == n2
   _ == _ = False
 
-data Vector =
-  Vector (Triple Double)
 
 newPoint a b c = Point (Triple a b c)
 
@@ -111,7 +103,7 @@ light =
   , _reflective = True
   , _form =
       Disk
-      {_center = newPoint 0 0 (-1), _normal = newVector 0 (0) (1), _radius = 20}
+      {_center = newPoint 0 0 (-1), _normal = newVector 0 0 1, _radius = 20}
   }
 
 infPlane =
@@ -122,7 +114,7 @@ infPlane =
   , _reflective = False
   , _form =
       InfinitePlane
-      {_point = newPoint 20 (-20) 100, _normal = newVector (0) 0 (-1)}
+      {_point = newPoint 20 (-20) 100, _normal = newVector 0 0 (-1)}
   }
 
 infPlane2 =
@@ -156,7 +148,7 @@ march (Ray (Point origin) (Vector vector) _ _) distance =
 
 ---
 distanceFrom :: Ray -> Form -> Maybe Double
-distanceFrom ray@(Ray {_origin = origin, _vector = vector}) form = do
+distanceFrom ray@Ray {_origin = origin, _vector = vector} form = do
   distance <- distanceFrom' ray form
   guard $ 0 < distance && distance < 1 / 0
   return distance

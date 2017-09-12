@@ -18,7 +18,7 @@ import Util (reshape)
 listToPixelRGB8 :: [Double] -> P.PixelRGB8
 listToPixelRGB8 list = P.PixelRGB8 r g b
   where
-    [r, g, b] = round <$> (255 *) <$> list
+    [r, g, b] = round . (255 *) <$> list
 
 repa3ToImage
   :: (R.Source r Double)
@@ -51,7 +51,7 @@ repa1ToText
   :: (R.Source r Vec3)
   => Array r DIM1 Vec3 -> TL.Text
 repa1ToText =
-  imageToText . repa2ToImage . (reshape [Params.height, Params.width])
+  imageToText . repa2ToImage . reshape [Params.height, Params.width]
 
 repa3ToText :: Array U DIM3 Double -> TL.Text
 repa3ToText = imageToText . repa3ToImage

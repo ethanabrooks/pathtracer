@@ -1,8 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE Arrows #-}
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE Strict #-}
 
 module Lib
@@ -55,17 +52,17 @@ traceSource
   :: Monad m
   => Source m (Array U DIM3 Double)
 traceSource =
-  (Data.Conduit.List.iterate traceCanvas startValues) =$=
-  (Data.Conduit.List.mapM computeArray3)
+  Data.Conduit.List.iterate traceCanvas startValues =$=
+  Data.Conduit.List.mapM computeArray3
   where
     startValues = R.zipWith (,) blackCanvas startingGens
-    computeArray3 = R.computeP . fromTripleArray . (R.map fst)
+    computeArray3 = R.computeP . fromTripleArray . R.map fst
 
 traces
   :: Monad m
   => [m (Array U DIM3 Double)]
 traces =
-  map (R.computeP . fromTripleArray . (R.map fst)) . iterate traceCanvas $
+  map (R.computeP . fromTripleArray . R.map fst) . iterate traceCanvas $
   R.zipWith (,) blackCanvas startingGens
 
 traceCanvas :: Array D DIM2 (Vec3, Random.StdGen)
@@ -89,7 +86,7 @@ traceRay bouncesLeft pixel ray = interactWith $ closestObjectTo ray
       where
         hitLight = _emittance object > 0 :: Bool
         ray' = bounceRay ray object distance :: Ray
-        brdf = (getVector ray') `dot` (getNormal $ _form object)
+        brdf = getVector ray' `dot` getNormal (_form object)
         pixel' = pure brdf * pixel * getColor object :: Vec3
 
 closestObjectTo :: Ray -> Maybe (Object, Double)
@@ -107,13 +104,13 @@ closestObjectTo ray = do
     pairs = V.mapMaybe pairWithDistance objectsWithoutLastStruck
     pairWithDistance :: Object -> Maybe (Object, Double)
     -- Nothing if distance is negative or infinite
-    pairWithDistance object = (object, ) <$> (distanceFrom ray $ _form object)
+    pairWithDistance object = (object, ) <$> distanceFrom ray (_form object)
     distanceOrdering :: (Object, Double) -> (Object, Double) -> Ordering
     distanceOrdering (_, distance1) (_, distance2) = compare distance1 distance2
 
 ---
 bounceRay :: Ray -> Object -> Double -> Ray
-bounceRay ray@(Ray {_gen = gen}) object distance =
+bounceRay ray@Ray {_gen = gen} object distance =
   Ray (Point origin) (Vector vector) gen' (Just object)
   where
     origin = march ray distance
@@ -136,7 +133,7 @@ specular gen noise vector normal =
         -- here we offset the angle of reflection by `noise` but ensure that this does not
         -- cause rays to penetrate the surface of the object
     angleWithSurface =
-      (Degrees 90) - (arccosine . abs $ normal' `dot` normalize vector)
+      Degrees 90 - (arccosine . abs $ normal' `dot` normalize vector)
     Degrees maxTheta = min angleWithSurface $ Degrees noise
     ([theta, phi], gen') = randomRangeList gen [(0, maxTheta), (0, 380)]
 
