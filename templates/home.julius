@@ -4,14 +4,12 @@ time = document.getElementById('time');
 count = 0;
 tick = newTick();
 
-sum = document.getElementById('sum');
 conn.onopen = function() {
     setInterval(function() { 
         conn.send(canvas.src);
       }, 1000);
 };
 conn.onmessage = function(e) {
-    sum.innerHTML = e.data;
     time.innerHTML += "<br>" + count + ": " + secondsSince(tick).toString();
     tick = newTick();
     count += 1;
