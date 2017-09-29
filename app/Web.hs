@@ -36,14 +36,8 @@ imgSrcDelimiter = ","
 imgSrcPrefix :: TL.Text
 imgSrcPrefix = "data:image/png;base64,"
 
-blackText :: TL.Text
-blackText =
-  TL.append
-    imgSrcPrefix
-    "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAADUlEQVR4nGNgGAWkAwABNgABVtF/yAAAAABJRU5ErkJggg=="
-
 getImgSrcPrefix :: TL.Text -> TL.Text
-getImgSrcPrefix = fst . (TL.breakOn imgSrcDelimiter)
+getImgSrcPrefix = fst . TL.breakOn imgSrcDelimiter
 
 formatAsImgSrc :: (TL.Text, Array U DIM3 Double) -> TL.Text
 formatAsImgSrc (_, array) = imgSrcPrefix <> repa3ToText array
@@ -60,3 +54,9 @@ getHomeR = do
 
 main :: IO ()
 main = warp 3000 App
+
+blackText :: TL.Text
+blackText =
+  TL.append
+    imgSrcPrefix
+    "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAADUlEQVR4nGNgGAWkAwABNgABVtF/yAAAAABJRU5ErkJggg=="
