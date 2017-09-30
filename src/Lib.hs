@@ -65,8 +65,19 @@ traces =
   map (R.computeP . fromTripleArray . R.map fst) . iterate traceCanvas $
   R.zipWith (,) blackCanvas startingGens
 
-traceCanvas :: Array D DIM2 (Vec3, Random.StdGen)
-            -> Array D DIM2 (Vec3, Random.StdGen)
+{-
+traceCanvasM
+  :: Monad m
+  => m (Array U DIM2 (Vec3, Random.StdGen))
+  -> m (Array D DIM2 (Vec3, Random.StdGen))
+traceCanvasM arrayM = do
+  array <- arrayM
+  let traced = fromTripleArray . R.map fst $ traceCanvas array
+  R.computeP traced
+-}
+traceCanvas
+  :: R.Source r (Vec3, Random.StdGen)
+  => Array r DIM2 (Vec3, Random.StdGen) -> Array D DIM2 (Vec3, Random.StdGen)
 traceCanvas array =
   R.traverse array id $ \lookup sh ->
     let (color, gen) = lookup sh
