@@ -33,9 +33,7 @@ data Triple a =
          a
   deriving (P.Show, P.Eq, Typeable)
 
-{-
-type instance EltRepr (Triple a) = EltRepr (a, a, a)
-
+{-type instance EltRepr (Triple a) = EltRepr (a, a, a)-}
 instance Elt a =>
          Elt (Triple a) where
   eltType (_ :: Triple a) = eltType (undefined :: (a, a, a))
@@ -44,6 +42,7 @@ instance Elt a =>
     in Triple x y z
   fromElt (Triple x y z) = fromElt (x, y, z)
 
+{-
 instance Elt a =>
          IsProduct Elt (Triple a) where
   type ProdRepr (Triple a) = (((), a), a)

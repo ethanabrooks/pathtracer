@@ -43,7 +43,7 @@ blackText =
     "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAADUlEQVR4nGNgGAWkAwABNgABVtF/yAAAAABJRU5ErkJggg=="
 
 getImgSrcPrefix :: TL.Text -> TL.Text
-getImgSrcPrefix = fst . (TL.breakOn imgSrcDelimiter)
+getImgSrcPrefix = fst . TL.breakOn imgSrcDelimiter
 
 formatAsImgSrc :: (TL.Text, Array U DIM3 Double) -> TL.Text
 formatAsImgSrc (_, array) = imgSrcPrefix <> repa3ToText array
