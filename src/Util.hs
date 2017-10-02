@@ -15,7 +15,6 @@ module Util
   , vecAeq
   , rotateAbs
   , rotateRel
-  , contains
   , randomAngle
   , randomRangeList
   , fromTripleArray
@@ -29,10 +28,9 @@ import Data.Array.Repa ((:.)(..), Array, D, DIM2, DIM3, Z(..), (!))
 import qualified Data.Array.Repa as R
 import qualified Data.Array.Repa.Shape as S
 import Data.Fixed (mod')
+import Data.Range.Range
 import qualified System.Random as Random
-import Triple
-       (Vec3, Triple(..), tripleToList, listToTriple, normalize, norm2,
-        tAnd)
+import Triple (Vec3, Triple(..), normalize, norm2)
 
 instance Functor Degrees where
   fmap f (Degrees x) = Degrees (f x)
@@ -46,8 +44,7 @@ inferMissing
   => [a] -> [a] -> [a]
 inferMissing list listWithNeg
   | not valid =
-    error
-      (show list ++ " and " ++ show listWithNeg ++ " are not valid inputs.")
+    error (show list ++ " and " ++ show listWithNeg ++ " are not valid inputs.")
   | valid = result
   where
     valid = (product result == product list) && all (> 0) result
@@ -66,7 +63,9 @@ fromTripleArray
 fromTripleArray array =
   R.fromFunction
     (Z :. rows :. cols :. 3)
-    (\(Z :. i :. j :. k) -> tripleToList (array ! (Z :. i :. j)) !! k)
+    (\(Z :. i :. j :. k) ->
+       let Triple x y z = (array ! (Z :. i :. j))
+       in [x, y, z] !! k)
   where
     (Z :. rows :. cols) = R.extent array
 
@@ -76,7 +75,9 @@ toTripleArray
 toTripleArray array =
   R.fromFunction
     (Z :. rows :. cols)
-    (\(Z :. i :. j) -> listToTriple [array ! (Z :. i :. j :. k) | k <- [0 .. 2]])
+    (\(Z :. i :. j) ->
+       let [x, y, z] = [array ! (Z :. i :. j :. k) | k <- [0 .. 2]]
+       in Triple x y z)
   where
     (Z :. rows :. cols :. _) = R.extent array
 
@@ -156,7 +157,7 @@ aeq tolerance a b = (a - b) * (a - b) < tolerance
 vecAeq
   :: (Ord a, Num a)
   => a -> Triple a -> Triple a -> Bool
-vecAeq tolerance a b = tAnd $ liftA2 (aeq tolerance) a b
+vecAeq tolerance a b = and $ liftA2 (aeq tolerance) a b
 
 contains
   :: Ord t

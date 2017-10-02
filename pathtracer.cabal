@@ -28,6 +28,7 @@ library
                      , bytestring 
                      , conduit
                      , accelerate
+                     , range
   default-language:    Haskell2010
 
 executable acc

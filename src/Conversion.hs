@@ -12,7 +12,7 @@ import qualified Data.ByteString.Lazy.Char8
 import qualified Data.Text.Encoding
 import qualified Data.Text.Lazy as TL
 import qualified Params
-import Triple (Vec3, tripleToList)
+import Triple (Vec3, Triple(..))
 import Util (reshape)
 
 listToPixelRGB8 :: [Double] -> P.PixelRGB8
@@ -33,7 +33,9 @@ repa2ToImage
   => Array r DIM2 Vec3 -> P.Image P.PixelRGB8
 repa2ToImage canvas = P.generateImage fromCoords Params.height Params.width
   where
-    fromCoords i j = listToPixelRGB8 . tripleToList $ canvas ! (Z :. i :. j)
+    fromCoords i j =
+      let Triple x y z = canvas ! (Z :. i :. j)
+      in listToPixelRGB8 [x, y, z]
 
 imageToText :: P.Image P.PixelRGB8 -> TL.Text
 imageToText =
@@ -50,8 +52,7 @@ repa2ToText = imageToText . repa2ToImage
 repa1ToText
   :: (R.Source r Vec3)
   => Array r DIM1 Vec3 -> TL.Text
-repa1ToText =
-  imageToText . repa2ToImage . reshape [Params.height, Params.width]
+repa1ToText = imageToText . repa2ToImage . reshape [Params.height, Params.width]
 
 repa3ToText :: Array U DIM3 Double -> TL.Text
 repa3ToText = imageToText . repa3ToImage

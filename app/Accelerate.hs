@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -7,33 +5,28 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module Main
-  ( main
+  (
   ) where
 
-import Data.Array.Accelerate as A
+import Data.Array.Accelerate
+       (Acc, Z(..), (:.)(..), Elt(..), Lift(..), Unlift(..), Plain)
 import Data.Array.Accelerate.Array.Sugar
-       (Elt(..), EltRepr, Tuple(..))
+       (Elt(..), EltRepr, Tuple(..), TupleRepr)
 import Data.Array.Accelerate.Product (TupleIdx(..), IsProduct(..))
 import Data.Array.Accelerate.Smart
+import Data.Typeable (Typeable)
+import Prelude as P
 
-import Data.Array.Accelerate (Acc, Z(..), (:.)(..), Elt(..))
-import qualified Data.Array.Accelerate.Data.Monoid as AM
-import Data.Array.Accelerate.Interpreter (run)
-import Data.Typeable
-import Prelude (fromInteger) -- ghc < 8 bug
-
-import qualified Prelude as P
-
-dotp :: Acc (A.Vector Float) -> Acc (A.Vector Float) -> Acc (A.Scalar Float)
-dotp xs ys = A.fold (+) 0 (A.zipWith (*) xs ys)
-
+{-dotp :: Acc (A.Vector Float) -> Acc (A.Vector Float) -> Acc (A.Scalar Float)-}
+{-dotp xs ys = A.fold (+) 0 (A.zipWith (*) xs ys)-}
 data Triple a =
   Triple a
          a
          a
-  deriving (P.Show, P.Eq, Typeable)
+  deriving (Show, P.Eq, Typeable)
 
-{-type instance EltRepr (Triple a) = EltRepr (a, a, a)-}
+type instance EltRepr (Triple a) = EltRepr (a, a, a)
+
 instance Elt a =>
          Elt (Triple a) where
   eltType (_ :: Triple a) = eltType (undefined :: (a, a, a))
@@ -42,19 +35,20 @@ instance Elt a =>
     in Triple x y z
   fromElt (Triple x y z) = fromElt (x, y, z)
 
-{-
 instance Elt a =>
          IsProduct Elt (Triple a) where
-  type ProdRepr (Triple a) = (((), a), a)
-  fromProd _ (Triple x y z) = ((((), x), y), z)
-  toProd _ ((((), x), y), z) = Triple x y z
-  prod cst _ = prod cst (undefined :: (a, a, a))
+  type ProdRepr (Triple a) = ProdRepr (a, a, a)
+  fromProd cst (Triple x y z) = fromProd cst (x, y, z)
+  toProd cst p =
+    let (x, y, z) = toProd cst p
+    in Triple x y z
+  prod cst _ = prod cst (undefined :: (Triple a))
 
 instance (Lift Exp a, Elt (Plain a)) =>
          Lift Exp (Triple a) where
   type Plain (Triple a) = Triple (Plain a)
   lift (Triple x y z) =
-    Exp . Tuple $ NilTup `SnocTup` lift x `SnocTup` lift y `SnocTup` lift z
+    Exp $ Tuple (NilTup `SnocTup` lift x `SnocTup` lift y `SnocTup` lift z)
 
 instance Elt a =>
          Unlift Exp (Triple (Exp a)) where
@@ -63,10 +57,10 @@ instance Elt a =>
         y = Exp $ ZeroTupIdx `Prj` p
         z = Exp $ ZeroTupIdx `Prj` p
     in Triple x y z
--}
+{-
 main :: P.IO ()
 main = do
   let v1 = A.use (A.fromList (Z :. 3) [0 ..] :: A.Vector Float)
   let v2 = A.map (+ 1) v1
   P.print . run $ dotp v1 v2
-  {-print $ A.toList v2-}
+  print $ A.toList v2-}

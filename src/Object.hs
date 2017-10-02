@@ -7,6 +7,7 @@ module Object
   , Point(..)
   , Vector(..)
   , Color(..)
+  , Seed(..)
   , distanceFrom
   , distanceFrom'
   , march
@@ -21,10 +22,32 @@ import qualified Data.Vector as V
 import qualified System.Random as Random
 import Triple (Triple(..), Vec3, norm2, dot, normalize)
 
-newtype Color = Color Vec3 
+import Data.Array.Accelerate
+       (Acc, Z(..), (:.)(..), Elt(..), Lift(..), Unlift(..), Plain)
+import Data.Array.Accelerate.Array.Sugar
+       (Elt(..), EltRepr, Tuple(..), TupleRepr)
+import Data.Array.Accelerate.Product (TupleIdx(..), IsProduct(..))
+import Data.Array.Accelerate.Smart
+import Data.Typeable (Typeable)
+import Prelude as P
+
+newtype Color =
+  Color Vec3
+  deriving (Eq)
+
+newtype Point =
+  Point (Triple Double)
+  deriving (Eq)
+
+newtype Vector =
+  Vector Vec3
   deriving (Eq)
 
 newColor a b c = Color $ Triple a b c
+
+newPoint a b c = Point $ Triple a b c
+
+newVector a b c = Vector $ Triple a b c
 
 data Object = Object
   { _color :: Color
@@ -37,12 +60,6 @@ data Object = Object
 instance Eq Object where
   Object c1 e1 r1 f1 n1 == Object c2 e2 r2 f2 n2 =
     c1 == c2 && e1 == e2 && r1 == r2 && f1 == f2 && n1 == n2
-
-newtype Point =
-  Point (Triple Double) deriving (Eq)
-
-newtype Vector =
-  Vector Vec3 deriving Eq
 
 data Form
   = Disk { _center :: Point
@@ -61,15 +78,13 @@ instance Eq Form where
   InfinitePlane p1 n1 == InfinitePlane p2 n2 = p1 == p2 && n1 == n2
   _ == _ = False
 
-
-newPoint a b c = Point (Triple a b c)
-
-newVector a b c = Vector (Triple a b c)
+newtype Seed =
+  Seed Int
 
 data Ray = Ray
   { _origin :: Point
   , _vector :: Vector
-  , _gen :: Random.StdGen
+  , _seed :: Seed
   , _lastStruck :: Maybe Object
   }
 
@@ -181,8 +196,14 @@ getColor Object {_color = Color color} = color
 
 getVector :: Ray -> Triple Double
 getVector Ray {_vector = Vector vector} = vector
----
  {-
 TODO:
 add spheres
 -}
+---
+{-
+instance Elt Ray where 
+  eltType _ = eltType  (undefined :: (Vec3, Vec3, Int, Maybe Int)
+  toElt p = let (point, vector, seed, lastStruck) = toElt p
+             in Ray point vector seed 
+             -}
