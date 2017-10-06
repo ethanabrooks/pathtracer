@@ -26,6 +26,7 @@ import Data.Array.Accelerate.Product (TupleIdx(..), IsProduct(..))
 import Data.Array.Accelerate.Smart
 import Data.Typeable (Typeable)
 import Prelude as P
+import qualified System.Random as Random
 
 data Triple a =
   Triple a
@@ -57,7 +58,11 @@ instance (Lift Exp a, Elt (Plain a)) =>
          Lift Exp (Triple a) where
   type Plain (Triple a) = Triple (Plain a)
   lift (Triple x y z) =
-    Exp $ Tuple (NilTup `SnocTup` lift x `SnocTup` lift y `SnocTup` lift z)
+    Exp $ Tuple (v :: Tuple Exp (ProdRepr (Triple (Plain a))))
+      {-v = (NilTup) `SnocTup` (lift x `SnocTup` (lift y `SnocTup` (lift z)))-}
+    where
+      v = NilTup `SnocTup` lift x `SnocTup` lift y `SnocTup` lift z
+      {-v = SnocTup NilTup (SnocTup (lift x) (SnocTup (lift y) (lift z)))-}
 
 instance Elt a =>
          Unlift Exp (Triple (Exp a)) where

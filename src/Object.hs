@@ -1,4 +1,10 @@
 {-# LANGUAGE Strict #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Object
   ( Object(..)
@@ -7,7 +13,6 @@ module Object
   , Point(..)
   , Vector(..)
   , Color(..)
-  , Seed(..)
   , distanceFrom
   , distanceFrom'
   , march
@@ -28,6 +33,7 @@ import Data.Array.Accelerate.Array.Sugar
        (Elt(..), EltRepr, Tuple(..), TupleRepr)
 import Data.Array.Accelerate.Product (TupleIdx(..), IsProduct(..))
 import Data.Array.Accelerate.Smart
+import Data.Maybe
 import Data.Typeable (Typeable)
 import Prelude as P
 
@@ -37,11 +43,11 @@ newtype Color =
 
 newtype Point =
   Point (Triple Double)
-  deriving (Eq)
+  deriving (Eq, Show)
 
 newtype Vector =
   Vector Vec3
-  deriving (Eq)
+  deriving (Eq, Show)
 
 newColor a b c = Color $ Triple a b c
 
@@ -78,15 +84,56 @@ instance Eq Form where
   InfinitePlane p1 n1 == InfinitePlane p2 n2 = p1 == p2 && n1 == n2
   _ == _ = False
 
-newtype Seed =
-  Seed Int
+type instance EltRepr Random.StdGen = EltRepr (Int, Int)
 
+instance Elt Random.StdGen where
+  eltType _ = eltType (undefined :: (Int, Int))
+  toElt p =
+    let (a :: Int, b :: Int) = toElt p
+    in read (show a ++ " " ++ show b) :: Random.StdGen
+  fromElt gen = fromElt (a, b)
+    where
+      [a, b] = map read . words $ show gen :: [Int]
+
+type instance EltRepr (Maybe Int) = EltRepr (Bool, Int)
+
+instance Elt (Maybe Int) where
+  eltType _ = eltType (undefined :: (Bool, Int))
+  toElt p =
+    let (maybe, n) = toElt p
+    in if maybe
+         then Just n
+         else Nothing
+  fromElt (Just n) = fromElt (True, n)
+  fromElt Nothing = fromElt (False, 0 :: Int)
+
+instance IsProduct Elt (Maybe Int) where
+  type ProdRepr (Maybe Int) = ProdRepr (Bool, Int)
+  fromProd cst option = fromProd cst $ maybe (False, 0) (True, ) option
+  toProd cst = toElt
+  prod cst _ = prod cst (undefined :: (Bool, Int))
+
+instance Lift Exp (Maybe Int) where
+  type Plain (Maybe Int) = Maybe Int
+  lift option = Exp . Tuple $ NilTup `SnocTup` lift True `SnocTup` lift n
+    where
+      n = fromMaybe 0 option
+
+{-type instance EltRepr Ray = EltRepr (Vec3, Vec3, -}
+{-
+instance Elt a =>
+         Unlift Exp (Maybe (Exp a)) where
+  unlift p =
+    let maybe = Exp $ SuccTupIdx ZeroTupIdx `Prj` p
+        a = Exp $ ZeroTupIdx `Prj` p
+    in toElt (maybe, a)
+    -}
 data Ray = Ray
   { _origin :: Point
   , _vector :: Vector
-  , _seed :: Seed
-  , _lastStruck :: Maybe Object
-  }
+  , _gen :: Random.StdGen
+  , _lastStruck :: Maybe Int
+  } deriving (Show)
 
 infLight =
   Object

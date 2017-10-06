@@ -74,6 +74,20 @@ traceCanvas array =
           traceRay Params.maxBounces white $ rayFromCamToPixel gen sh
     in (color + color', gen')
 
+traceRay' :: Vec3 -> Ray -> (Vec3, Ray)
+traceRay' pixel ray = interactWith $ closestObjectTo ray
+  where
+    interactWith :: Maybe (Object, Double) -> (Vec3, Ray)
+    interactWith Nothing = (black, ray) -- pixel
+    interactWith (Just (object, distance))
+      | hitLight = ((_emittance object *) <$> pixel, ray)
+      | otherwise = (pixel', ray')
+      where
+        ray' = bounceRay ray object distance :: Ray
+        hitLight = _emittance object > 0 :: Bool
+        brdf = getVector ray' `dot` getNormal (_form object)
+        pixel' = pure brdf * pixel * getColor object :: Vec3
+
 traceRay :: Int -> Vec3 -> Ray -> (Vec3, Random.StdGen)
 traceRay 0 _ ray = (black, _gen ray) -- ran out of bounces
 traceRay bouncesLeft pixel ray = interactWith $ closestObjectTo ray
