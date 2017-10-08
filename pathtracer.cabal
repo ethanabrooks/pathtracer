@@ -15,7 +15,7 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Lib, Triple, Object, Util, Params, Conversion, State
+  exposed-modules:     Lib,Object, Objects, Params, Ray,State, Triple, Util
   build-depends:       base >= 4.7 && < 5
                      , repa
                      , AC-Angle
