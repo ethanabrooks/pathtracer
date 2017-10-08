@@ -21,7 +21,8 @@ import qualified Data.Vector as V
 import qualified System.Random as Random
 import Triple (Triple(..), Vec3, norm2, dot, normalize)
 
-newtype Color = Color Vec3 
+newtype Color =
+  Color Vec3
   deriving (Eq)
 
 newColor a b c = Color $ Triple a b c
@@ -39,10 +40,12 @@ instance Eq Object where
     c1 == c2 && e1 == e2 && r1 == r2 && f1 == f2 && n1 == n2
 
 newtype Point =
-  Point (Triple Double) deriving (Eq)
+  Point (Triple Double)
+  deriving (Eq)
 
 newtype Vector =
-  Vector Vec3 deriving Eq
+  Vector Vec3
+  deriving (Eq)
 
 data Form
   = Disk { _center :: Point
@@ -60,7 +63,6 @@ instance Eq Form where
   Disk c1 n1 r1 == Disk c2 n2 r2 = c1 == c2 && n1 == n2 && r1 == r2
   InfinitePlane p1 n1 == InfinitePlane p2 n2 = p1 == p2 && n1 == n2
   _ == _ = False
-
 
 newPoint a b c = Point (Triple a b c)
 
@@ -139,7 +141,7 @@ infPlane3 =
   }
 
 objects :: V.Vector Object
-objects = V.fromList [infPlane, infPlane2, infPlane3, light]
+objects = V.fromList [infPlane, light]
 
 ---
 march :: Ray -> Double -> Vec3

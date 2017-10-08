@@ -16,6 +16,7 @@ import qualified Data.Array.Repa as R
 import Data.Conduit (($$), (=$=), Source, Producer, Conduit)
 import qualified Data.Conduit.List
 import qualified Data.Vector as V
+import Debug.Trace
 import Object
        (Object(..), Ray(..), Point(..), Vector(..), getColor, getNormal,
         distanceFrom, objects, march, getVector)
@@ -65,16 +66,6 @@ traces =
   map (R.computeP . fromTripleArray . R.map fst) . iterate traceCanvas $
   R.zipWith (,) blackCanvas startingGens
 
-{-
-traceCanvasM
-  :: Monad m
-  => m (Array U DIM2 (Vec3, Random.StdGen))
-  -> m (Array D DIM2 (Vec3, Random.StdGen))
-traceCanvasM arrayM = do
-  array <- arrayM
-  let traced = fromTripleArray . R.map fst $ traceCanvas array
-  R.computeP traced
--}
 traceCanvas
   :: R.Source r (Vec3, Random.StdGen)
   => Array r DIM2 (Vec3, Random.StdGen) -> Array D DIM2 (Vec3, Random.StdGen)
