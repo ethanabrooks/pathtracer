@@ -3,25 +3,23 @@ module Objects where
 import qualified Data.Vector as V
 import Object (Object(..), Form(..))
 import Triple (Triple(..))
-import Util (Color, Vector, Point, newPoint, newVector, newColor)
-import qualified Util
+import Util
+       (Color(..), Vector(..), Point(..), newPoint, newVector, newColor)
 
 infLight =
   Object
-  { _color = Util.Color $ pure 1
+  { _color = Color $ pure 1
   , _name = "infinite light"
   , _emittance = 5
   , _reflective = True
   , _form =
       InfinitePlane
-      { _point = Util.Point $ Triple 0 0 (-10)
-      , _normal = Util.Vector $ Triple 0 0 (-1)
-      }
+      {_point = Point $ Triple 0 0 (-10), _normal = Vector $ Triple 0 0 (-1)}
   }
 
 disk =
   Object
-  { _color = Util.Color $ Triple 0 1 0
+  { _color = Color $ Triple 0 1 0
   , _name = "disk"
   , _emittance = 0
   , _reflective = False
@@ -32,7 +30,7 @@ disk =
 
 light =
   Object
-  { _color = Util.Color $ pure 1
+  { _color = Color $ pure 1
   , _name = "light"
   , _emittance = 2
   , _reflective = True
@@ -43,7 +41,7 @@ light =
 
 infPlane =
   Object
-  { _color = Util.Color . pure $ 1
+  { _color = Color . pure $ 1
   , _name = "plane 1"
   , _emittance = 0
   , _reflective = False

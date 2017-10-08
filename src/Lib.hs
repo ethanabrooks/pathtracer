@@ -16,14 +16,15 @@ import qualified Data.Array.Repa as R
 import Data.Conduit (($$), (=$=), Source, Producer, Conduit)
 import qualified Data.Conduit.List
 import qualified Data.Vector as V
-import Object
-       (Object(..), Ray(..), Point(..), Vector(..), getColor, getNormal,
-        distanceFrom, objects, march, getVector)
+import Object (Object(..), getColor, getNormal)
+import Objects (objects)
 import qualified Params
+import Ray (Ray(..), distanceFrom, march, getVector)
 import qualified System.Random as Random
 import Triple (Triple(..), Vec3, normalize, dot)
 import Util
-       (white, black, rotateRel, randomRangeList, fromTripleArray)
+       (white, black, rotateRel, randomRangeList, fromTripleArray,
+        Point(..), Vector(..))
 
 blackCanvas :: Array D DIM2 Vec3
 blackCanvas = R.fromFunction (Z :. Params.height :. Params.width) $ const black

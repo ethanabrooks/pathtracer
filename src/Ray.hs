@@ -1,24 +1,30 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
+
 module Ray where
 
 import Control.Monad
-import Object (Form(..))
+import Object (Form(..), Object)
 import qualified System.Random as Random
 import Triple (Triple(..), Vec3, norm2, dot, normalize)
-import Util (Point, Vector)
 import qualified Util
+import Util (Point(..), Vector(..))
 
 data Ray = Ray
-  { _origin :: Util.Point
-  , _vector :: Util.Vector
+  { _origin :: Point
+  , _vector :: Vector
   , _gen :: Random.StdGen
-  , _lastStruck :: Maybe Int
-  } deriving (Show)
+  , _lastStruck :: Maybe Object
+  }
 
 getVector :: Ray -> Triple Double
-getVector Ray {_vector = Util.Vector vector} = vector
+getVector Ray {_vector = Vector vector} = vector
 
 march :: Ray -> Double -> Vec3
-march (Ray (Util.Point origin) (Util.Vector vector) _ _) distance =
+march (Ray (Point origin) (Vector vector) _ _) distance =
   origin + ((distance *) <$> vector)
 
 distanceFrom :: Ray -> Form -> Maybe Double
@@ -28,12 +34,11 @@ distanceFrom ray@Ray {_origin = origin, _vector = vector} form = do
   return distance
 
 distanceFrom' :: Ray -> Form -> Maybe Double
-distanceFrom' ray@(Ray (Util.Point origin) (Util.Vector vector) _ _) form =
+distanceFrom' ray@(Ray (Point origin) (Vector vector) _ _) form =
   case form of
-    Disk (Util.Point center) (Util.Vector normal) radius -> do
+    Disk (Point center) (Vector normal) radius -> do
       distanceFromOrigin <-
-        distanceFrom ray $
-        InfinitePlane (Util.Point center) (Util.Vector normal)
+        distanceFrom ray $ InfinitePlane (Point center) (Vector normal)
       let point = march ray distanceFromOrigin
       let distanceFromCenter = norm2 $ point - center
       guard $ distanceFromCenter < radius
@@ -42,5 +47,6 @@ distanceFrom' ray@(Ray (Util.Point origin) (Util.Vector vector) _ _) form =
     --   distanceFromOrigin    <- distanceFrom ray $ InfinitePlane center normal
     --   let point              = march ray distanceFromOrigin
     --   guard
-    InfinitePlane (Util.Point point) (Util.Vector normal) ->
-      Just $ ((point - origin) `dot` normal) / (vector `dot` normalize normal)
+    InfinitePlane (Point point) (Vector normal) ->
+      Just $ ((point - origin) `dot` normal') / (vector `dot` normal')
+      where normal' = normalize normal

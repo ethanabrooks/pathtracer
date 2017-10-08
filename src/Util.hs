@@ -8,48 +8,30 @@
 {-# LANGUAGE Strict #-}
 
 module Util where
-       {-
-import qualified Data.Array.Accelerate as A
-       (Acc, Z(..), (:.)(..), Elt(..), Lift(..), Unlift(..), Plain)
-import Data.Array.Accelerate.Array.Sugar
-       (EltRepr, Tuple(..), TupleRepr)
-import Data.Array.Accelerate.Smart as A (PreExp(..))
-
-import Data.Array.Accelerate.Product (TupleIdx(..), IsProduct(..))
-
-import Data.Range.Range
-import qualified System.Random as Random
-
--}
 
 import qualified Codec.Picture as P
 import Control.Applicative
 import Control.Exception.Base (assert)
 import Data.Angle
        (Degrees(..), arctangent, arccosine, cosine, sine)
-import Data.Array.Repa ((:.)(..), D, DIM2, DIM3, (!))
+import Data.Array.Accelerate (Lift(..), Plain)
+import Data.Array.Accelerate.Array.Sugar
+       (Elt(..), EltRepr, Tuple(..), TupleRepr)
+import Data.Array.Accelerate.Product (IsProduct(..))
+import Data.Array.Accelerate.Smart
+import Data.Array.Repa ((!))
+import qualified Data.Array.Repa as R
+import qualified Data.Array.Repa.Shape as S
 import qualified Data.ByteString.Base64
 import qualified Data.ByteString.Lazy.Char8
 import Data.Fixed (mod')
 import Data.Maybe
 import qualified Data.Text.Encoding
 import qualified Data.Text.Lazy as TL
-import qualified Params
-
-import Text.Read (readMaybe)
-
-import Data.Array.Accelerate
-       (Acc, Z(..), (:.)(..), Elt(..), Lift(..), Unlift(..), Plain)
-import Data.Array.Accelerate.Array.Sugar
-       (Elt(..), EltRepr, Tuple(..), TupleRepr)
-import Data.Array.Accelerate.Product (TupleIdx(..), IsProduct(..))
-import Data.Array.Accelerate.Smart
-import qualified Data.Array.Repa as R
-import qualified Data.Array.Repa.Shape as S
-
 import Data.Typeable (Typeable)
-import Prelude as P
+import qualified Params
 import qualified System.Random as Random
+import Text.Read (readMaybe)
 import Triple (Vec3, Triple(..), normalize, norm2)
 
 type instance EltRepr Random.StdGen = EltRepr (Int, Int)
@@ -58,13 +40,17 @@ readErrorMsg :: String -> String -> String
 readErrorMsg string typeString =
   "Failed to read string: \"" ++ string ++ "\" as " ++ typeString ++ "."
 
-stdGenToTuple :: Random.StdGen -> (Int, Int)
+stdGenToTuple :: Random.StdGen -> Maybe (Int, Int)
 stdGenToTuple gen =
   case map readMaybe strings :: [Maybe Int] of
-    [Just a, Just b] -> (a, b)
-    _ -> error $ readErrorMsg (show strings) "[Int]"
+    [Just a, Just b] -> Just (a, b)
+    _ -> Nothing
   where
     strings = words $ show gen :: [String]
+
+unsafeStdGenToTuple :: Random.StdGen -> (Int, Int)
+unsafeStdGenToTuple gen =
+  fromMaybe (error $ readErrorMsg (show gen) "[Int]") $ stdGenToTuple gen
 
 instance Elt Random.StdGen where
   eltType _ = eltType (undefined :: (Int, Int))
@@ -73,11 +59,11 @@ instance Elt Random.StdGen where
     where
       (a, b) = toElt p :: (Int, Int)
       string = show a ++ " " ++ show b
-  fromElt = fromElt . stdGenToTuple
+  fromElt = fromElt . unsafeStdGenToTuple
 
 instance IsProduct Elt Random.StdGen where
   type ProdRepr Random.StdGen = ProdRepr (Int, Int)
-  fromProd cst = fromProd cst . stdGenToTuple
+  fromProd cst = fromProd cst . unsafeStdGenToTuple
   toProd cst = toElt
   prod cst _ = prod cst (undefined :: (Int, Int))
 
@@ -85,43 +71,8 @@ instance Lift Exp Random.StdGen where
   type Plain Random.StdGen = (Int, Int)
   lift gen = Exp . Tuple $ NilTup `SnocTup` lift a `SnocTup` lift b
     where
-      (a, b) = stdGenToTuple gen
+      (a, b) = unsafeStdGenToTuple gen
 
-type instance EltRepr (Maybe Int) = EltRepr (Bool, Int)
-
-maybeToTuple :: Maybe Int -> (Bool, Int)
-maybeToTuple = maybe (False, 0) (True, )
-
-instance Elt (Maybe Int) where
-  eltType _ = eltType (undefined :: (Bool, Int))
-  toElt p =
-    let (maybe, n) = toElt p
-    in if maybe
-         then Just n
-         else Nothing
-  fromElt = fromElt . maybeToTuple
-
-instance IsProduct Elt (Maybe Int) where
-  type ProdRepr (Maybe Int) = ProdRepr (Bool, Int)
-  fromProd cst = fromProd cst . maybeToTuple
-  toProd cst = toElt
-  prod cst _ = prod cst (undefined :: (Bool, Int))
-
-instance Lift Exp (Maybe Int) where
-  type Plain (Maybe Int) = Maybe Int
-  lift option = Exp . Tuple $ NilTup `SnocTup` lift bool `SnocTup` lift n
-    where
-      (bool, n) = maybeToTuple option
-
-{-type instance EltRepr Ray = EltRepr (Vec3, Vec3, -}
-{-
-instance Elt a =>
-         Unlift Exp (Maybe (Exp a)) where
-  unlift p =
-    let maybe = Exp $ SuccTupIdx ZeroTupIdx `Prj` p
-        a = Exp $ ZeroTupIdx `Prj` p
-    in toElt (maybe, a)
-    -}
 newtype Point =
   Point (Triple Double)
   deriving (Eq, Show)
@@ -132,7 +83,7 @@ newtype Vector =
 
 newtype Color =
   Color Vec3
-  deriving (Eq)
+  deriving (Eq, Show)
 
 newColor a b c = Color $ Triple a b c
 
