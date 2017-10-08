@@ -8,8 +8,9 @@
 
 module Object where
 
-import Triple (Triple)
-import Util (Point(..), Vector(..), Color(..))
+import Color (Color, colorToTriple)
+import Triple (Triple, Vec3)
+import Util (Point(..), Vector(..))
 
 data Form
   = Disk { _center :: Point
@@ -31,7 +32,7 @@ instance Eq Form where
   _ == _ = False
   -}
 data Object = Object
-  { _color :: Color
+  { _color :: Color Double
   , _emittance :: Double
   , _reflective :: Bool
   , _form :: Form
@@ -51,8 +52,8 @@ getNormal form = normal
   where
     Vector normal = _normal form
 
-getColor :: Object -> Triple Double
-getColor Object {_color = Color color} = color
+getColor :: Object -> Color Double
+getColor Object {_color = color} = color
  {-
 TODO:
 add spheres

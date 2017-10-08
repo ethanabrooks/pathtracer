@@ -15,7 +15,7 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Lib,Object, Objects, Params, Ray,State, Triple, Util
+  exposed-modules:     Lib,Object, Objects, Params, Ray,State, Triple, Util, Color
   build-depends:       base >= 4.7 && < 5
                      , repa
                      , AC-Angle
@@ -30,6 +30,8 @@ library
                      , accelerate
                      , range
                      , hashable
+                     , gloss
+                     , gloss-accelerate
   default-language:    Haskell2010
 
 executable acc
@@ -39,6 +41,8 @@ executable acc
   build-depends:       base
                      , pathtracer
                      , accelerate
+                     , gloss
+                     , gloss-accelerate
   default-language:    Haskell2010
 
 executable write

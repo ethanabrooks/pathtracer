@@ -1,14 +1,14 @@
 module Objects where
 
+import Color (newColor)
 import qualified Data.Vector as V
 import Object (Object(..), Form(..))
 import Triple (Triple(..))
-import Util
-       (Color(..), Vector(..), Point(..), newPoint, newVector, newColor)
+import Util (Vector(..), Point(..), newPoint, newVector)
 
 infLight =
   Object
-  { _color = Color $ pure 1
+  { _color = newColor 1 1 1
   , _name = "infinite light"
   , _emittance = 5
   , _reflective = True
@@ -19,7 +19,7 @@ infLight =
 
 disk =
   Object
-  { _color = Color $ Triple 0 1 0
+  { _color = newColor 0 1 0
   , _name = "disk"
   , _emittance = 0
   , _reflective = False
@@ -30,7 +30,7 @@ disk =
 
 light =
   Object
-  { _color = Color $ pure 1
+  { _color = newColor 1 1 1
   , _name = "light"
   , _emittance = 2
   , _reflective = True
@@ -41,7 +41,7 @@ light =
 
 infPlane =
   Object
-  { _color = Color . pure $ 1
+  { _color = newColor 1 1 1
   , _name = "plane 1"
   , _emittance = 0
   , _reflective = False
