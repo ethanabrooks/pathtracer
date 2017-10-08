@@ -25,7 +25,9 @@ import qualified Data.Array.Repa.Shape as S
 import qualified Data.ByteString.Base64
 import qualified Data.ByteString.Lazy.Char8
 import Data.Fixed (mod')
+import Data.Foldable
 import Data.Maybe
+import Data.Range.Range (Range)
 import qualified Data.Text.Encoding
 import qualified Data.Text.Lazy as TL
 import Data.Typeable (Typeable)
@@ -81,22 +83,9 @@ newtype Vector =
   Vector Vec3
   deriving (Eq, Show)
 
-newtype Color =
-  Color Vec3
-  deriving (Eq, Show)
-
-newColor a b c = Color $ Triple a b c
-
 newPoint a b c = Point $ Triple a b c
 
 newVector a b c = Vector $ Triple a b c
-
-instance Functor Degrees where
-  fmap f (Degrees x) = Degrees (f x)
-
-black = pure 0 :: Vec3
-
-white = pure 1 :: Vec3
 
 fromTripleArray
   :: R.Source r (Triple a)
@@ -157,6 +146,9 @@ expandDim dim array = R.reshape shape array
 
 insertAt :: Int -> a -> [a] -> [a]
 insertAt n x list = take n list ++ [x] ++ drop n list
+
+instance Functor Degrees where
+  fmap f (Degrees x) = Degrees (f x)
 
 arctan2 :: Double -> Double -> Degrees Double
 arctan2 x y = (`mod'` 360.0) <$> arctan'
@@ -282,3 +274,8 @@ repa1ToText = imageToText . repa2ToImage . reshape [Params.height, Params.width]
 
 repa3ToText :: R.Array R.U R.DIM3 Double -> TL.Text
 repa3ToText = imageToText . repa3ToImage
+
+clamp
+  :: Ord a
+  => a -> a -> a -> a
+clamp lower upper = max lower . min upper

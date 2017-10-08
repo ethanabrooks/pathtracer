@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-} -- needed for QuickCheck
 
+import Color (colorToWord32, tripleToColor)
 import Data.Angle
 import Data.Maybe
 import Debug.Trace
@@ -189,6 +190,17 @@ propRandomRangeList l1 h1 l2 h2 seed =
 propStdGenToTuple :: Int -> Bool
 propStdGenToTuple seed = isJust . stdGenToTuple $ Random.mkStdGen seed
 
+propColorToWord32 :: Bool
+propColorToWord32 =
+  and
+    [ colorToWord32 (tripleToColor triple) == word32
+    | (triple, word32) <-
+        [ (Triple 1 1 1, 0xFFFFFF)
+        , (Triple 0 0 0, 0x000000)
+        , (Triple 0 1 0, 0x00FF00)
+        ]
+    ]
+
 main = do
   putStrLn "propCross1"
   quickCheck propCross1
@@ -229,3 +241,5 @@ main = do
   quickCheck propNorm2
   putStrLn "propNormalize2"
   quickCheck propNormalize2
+  putStrLn "propColorToWord32"
+  quickCheck propColorToWord32
