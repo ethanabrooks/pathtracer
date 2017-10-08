@@ -8,4 +8,4 @@ cameraDepth = 500 :: Double
 
 numIters = 20 :: Int
 
-maxBounces = 1 :: Int
+maxBounces = 3 :: Int
