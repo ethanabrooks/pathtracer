@@ -8,14 +8,16 @@
 
 module Object where
 
+import Triple (Triple)
 import Util (Point, Vector, Color)
+import qualified Util
 
 data Form
   = Disk { _center :: Point
-        ,  _normal :: Vector
+        ,  _normal :: Util.Vector
         ,  _radius :: Double}
   | InfinitePlane { _point :: Point
-                 ,  _normal :: Vector}
+                 ,  _normal :: Util.Vector}
           -- | Rectangle
           --   { _center :: Vec3
           --   , _normal :: Vec3
@@ -30,7 +32,7 @@ instance Eq Form where
   _ == _ = False
   -}
 data Object = Object
-  { _color :: Color
+  { _color :: Util.Color
   , _emittance :: Double
   , _reflective :: Bool
   , _form :: Form
@@ -48,10 +50,10 @@ instance Eq Object where
 getNormal :: Form -> Triple Double
 getNormal form = normal
   where
-    Vector normal = _normal form
+    Util.Vector normal = _normal form
 
 getColor :: Object -> Triple Double
-getColor Object {_color = Color color} = color
+getColor Object {_color = Util.Color color} = color
  {-
 TODO:
 add spheres

@@ -1,13 +1,14 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE Strict #-}
 
 module Util where
-
-import Control.Applicative
-import Data.Angle
-       (Degrees(..), arctangent, arccosine, cosine, sine)
+       {-
 import qualified Data.Array.Accelerate as A
        (Acc, Z(..), (:.)(..), Elt(..), Lift(..), Unlift(..), Plain)
 import Data.Array.Accelerate.Array.Sugar
@@ -16,20 +17,40 @@ import Data.Array.Accelerate.Smart as A (PreExp(..))
 
 import Data.Array.Accelerate.Product (TupleIdx(..), IsProduct(..))
 
-{-import Data.Array.Repa ((:.)(..), Array, D, DIM2, DIM3, Z(..), (!))-}
-import qualified Data.Array.Repa as R
-import qualified Data.Array.Repa.Shape as S
-import Data.Fixed (mod')
 import Data.Range.Range
 import qualified System.Random as Random
-import Triple (Vec3, Triple(..), normalize, norm2)
+
+-}
 
 import qualified Codec.Picture as P
+import Control.Applicative
+import Control.Exception.Base (assert)
+import Data.Angle
+       (Degrees(..), arctangent, arccosine, cosine, sine)
+import Data.Array.Repa ((:.)(..), D, DIM2, DIM3, (!))
 import qualified Data.ByteString.Base64
 import qualified Data.ByteString.Lazy.Char8
+import Data.Fixed (mod')
+import Data.Maybe
 import qualified Data.Text.Encoding
 import qualified Data.Text.Lazy as TL
 import qualified Params
+
+import Text.Read (readMaybe)
+
+import Data.Array.Accelerate
+       (Acc, Z(..), (:.)(..), Elt(..), Lift(..), Unlift(..), Plain)
+import Data.Array.Accelerate.Array.Sugar
+       (Elt(..), EltRepr, Tuple(..), TupleRepr)
+import Data.Array.Accelerate.Product (TupleIdx(..), IsProduct(..))
+import Data.Array.Accelerate.Smart
+import qualified Data.Array.Repa as R
+import qualified Data.Array.Repa.Shape as S
+
+import Data.Typeable (Typeable)
+import Prelude as P
+import qualified System.Random as Random
+import Triple (Vec3, Triple(..), normalize, norm2)
 
 type instance EltRepr Random.StdGen = EltRepr (Int, Int)
 
@@ -45,7 +66,7 @@ stdGenToTuple gen =
   where
     strings = words $ show gen :: [String]
 
-instance A.Elt Random.StdGen where
+instance Elt Random.StdGen where
   eltType _ = eltType (undefined :: (Int, Int))
   toElt p =
     fromMaybe (error $ readErrorMsg string "Random.StdGen") (readMaybe string) :: Random.StdGen
@@ -60,9 +81,9 @@ instance IsProduct Elt Random.StdGen where
   toProd cst = toElt
   prod cst _ = prod cst (undefined :: (Int, Int))
 
-instance A.Lift Exp Random.StdGen where
+instance Lift Exp Random.StdGen where
   type Plain Random.StdGen = (Int, Int)
-  lift gen = Exp . Tuple $ NilTup `SnocTup` A.lift a `SnocTup` A.lift b
+  lift gen = Exp . Tuple $ NilTup `SnocTup` lift a `SnocTup` lift b
     where
       (a, b) = stdGenToTuple gen
 
@@ -71,7 +92,7 @@ type instance EltRepr (Maybe Int) = EltRepr (Bool, Int)
 maybeToTuple :: Maybe Int -> (Bool, Int)
 maybeToTuple = maybe (False, 0) (True, )
 
-instance A.Elt (Maybe Int) where
+instance Elt (Maybe Int) where
   eltType _ = eltType (undefined :: (Bool, Int))
   toElt p =
     let (maybe, n) = toElt p
@@ -80,15 +101,15 @@ instance A.Elt (Maybe Int) where
          else Nothing
   fromElt = fromElt . maybeToTuple
 
-instance IsProduct A.Elt (Maybe Int) where
+instance IsProduct Elt (Maybe Int) where
   type ProdRepr (Maybe Int) = ProdRepr (Bool, Int)
   fromProd cst = fromProd cst . maybeToTuple
   toProd cst = toElt
   prod cst _ = prod cst (undefined :: (Bool, Int))
 
-instance A.Lift Exp (Maybe Int) where
+instance Lift Exp (Maybe Int) where
   type Plain (Maybe Int) = Maybe Int
-  lift option = Exp . Tuple $ NilTup `SnocTup` A.lift bool `SnocTup` A.lift n
+  lift option = Exp . Tuple $ NilTup `SnocTup` lift bool `SnocTup` lift n
     where
       (bool, n) = maybeToTuple option
 
@@ -119,8 +140,8 @@ newPoint a b c = Point $ Triple a b c
 
 newVector a b c = Vector $ Triple a b c
 
-instance Functor Degrees --where
-  {-fmap f (Degrees x) = Degrees (f x)-}
+instance Functor Degrees where
+  fmap f (Degrees x) = Degrees (f x)
 
 black = pure 0 :: Vec3
 
@@ -131,24 +152,24 @@ fromTripleArray
   => R.Array r R.DIM2 (Triple a) -> R.Array R.D R.DIM3 a
 fromTripleArray array =
   R.fromFunction
-    (Z R.:. rows R.:. cols :. 3)
-    (\(Z :. i :. j :. k) ->
-       let Triple x y z = (array ! (Z :. i :. j))
+    (R.Z R.:. rows R.:. cols R.:. 3)
+    (\(R.Z R.:. i R.:. j R.:. k) ->
+       let Triple x y z = (array ! (R.Z R.:. i R.:. j))
        in [x, y, z] !! k)
   where
-    (Z :. rows :. cols) = R.extent array
+    (R.Z R.:. rows R.:. cols) = R.extent array
 
 toTripleArray
   :: R.Source r a
   => R.Array r R.DIM3 a -> R.Array R.D R.DIM2 (Triple a)
 toTripleArray array =
   R.fromFunction
-    (Z :. rows :. cols)
-    (\(Z :. i :. j) ->
-       let [x, y, z] = [array ! (Z :. i :. j :. k) | k <- [0 .. 2]]
+    (R.Z R.:. rows R.:. cols)
+    (\(R.Z R.:. i R.:. j) ->
+       let [x, y, z] = [array ! (R.Z R.:. i R.:. j R.:. k) | k <- [0 .. 2]]
        in Triple x y z)
   where
-    (Z :. rows :. cols :. _) = R.extent array
+    (R.Z R.:. rows R.:. cols R.:. _) = R.extent array
 
 mapIndex
   :: (S.Shape sh', R.Source r a)
@@ -187,7 +208,7 @@ insertAt :: Int -> a -> [a] -> [a]
 insertAt n x list = take n list ++ [x] ++ drop n list
 
 arctan2 :: Double -> Double -> Degrees Double
-arctan2 x y = (`mod'` 360) <$> arctan'
+arctan2 x y = (`mod'` 360.0) <$> arctan'
   where
     arctan = arctangent $ y / x
     arctan'
@@ -280,7 +301,7 @@ repa3ToImage
 repa3ToImage canvas = P.generateImage fromCoords Params.height Params.width
   where
     fromCoords i j =
-      listToPixelRGB8 [canvas ! (Z :. i :. j :. k) | k <- [0 .. 2]]
+      listToPixelRGB8 [canvas ! (R.Z R.:. i R.:. j R.:. k) | k <- [0 .. 2]]
 
 repa2ToImage
   :: (R.Source r Vec3)
@@ -288,7 +309,7 @@ repa2ToImage
 repa2ToImage canvas = P.generateImage fromCoords Params.height Params.width
   where
     fromCoords i j =
-      let Triple x y z = canvas ! (Z :. i :. j)
+      let Triple x y z = canvas ! (R.Z R.:. i R.:. j)
       in listToPixelRGB8 [x, y, z]
 
 imageToText :: P.Image P.PixelRGB8 -> TL.Text

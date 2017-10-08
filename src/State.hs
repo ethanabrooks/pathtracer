@@ -26,8 +26,8 @@ import Data.Array.Accelerate.Product (TupleIdx(..), IsProduct(..))
 import Data.Array.Accelerate.Smart
 import Data.Hashable
 import Data.Typeable (Typeable)
-import Object (Ray)
 import Prelude as P
+import Ray (Ray)
 import qualified System.Random as Random
 import Text.Read (read)
 
