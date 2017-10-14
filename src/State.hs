@@ -4,6 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module State where
 
@@ -28,14 +29,18 @@ type instance EltRepr State = EltRepr EltReprState
 
 instance Elt State where
   eltType _ = eltType (undefined :: EltReprState)
+  toElt :: EltRepr EltReprState -> State
   toElt p =
     let (color, gen) = toElt p
     in State color gen
+  fromElt :: State -> EltRepr EltReprState
   fromElt (State color gen) = fromElt (color, gen)
 
 instance IsProduct Elt State where
   type ProdRepr State = ProdRepr EltReprState
+  fromProd :: proxy Elt -> State -> ProdRepr State
   fromProd cst (State color gen) = fromProd cst (color, gen)
+  toProd :: proxy Elt -> ProdRepr State -> State
   toProd cst p =
     let (color, gen) = toProd cst p
     in State color gen
@@ -43,6 +48,7 @@ instance IsProduct Elt State where
 
 instance Lift Exp State where
   type Plain State = (Plain Vec3, Plain Random.StdGen)
+  lift :: State -> Exp (Plain State)
   lift (State color gen) = Exp $ Tuple tuple
     where
       tuple = NilTup `SnocTup` lift color `SnocTup` lift gen

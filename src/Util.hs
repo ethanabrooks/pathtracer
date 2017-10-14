@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -56,11 +57,13 @@ unsafeStdGenToTuple gen =
 
 instance Elt Random.StdGen where
   eltType _ = eltType (undefined :: (Int, Int))
+  toElt :: EltRepr (Int, Int) -> Random.StdGen
   toElt p =
     fromMaybe (error $ readErrorMsg string "Random.StdGen") (readMaybe string) :: Random.StdGen
     where
       (a, b) = toElt p :: (Int, Int)
       string = show a ++ " " ++ show b
+  fromElt :: Random.StdGen -> EltRepr (Int, Int)
   fromElt = fromElt . unsafeStdGenToTuple
 
 instance IsProduct Elt Random.StdGen where

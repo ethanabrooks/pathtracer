@@ -1,4 +1,5 @@
 {-# LANGUAGE Strict #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -22,7 +23,8 @@ import Data.Array.Accelerate
        (Acc, Z(..), (:.)(..), Elt(..), Lift(..), Unlift(..), Plain)
 import Data.Array.Accelerate.Array.Sugar
        (Elt(..), EltRepr, Tuple(..), TupleRepr)
-import Data.Array.Accelerate.Product (TupleIdx(..), IsProduct(..))
+import Data.Array.Accelerate.Product
+       (TupleIdx(..), IsProduct(..), ProdR)
 import Data.Array.Accelerate.Smart
 import Data.Typeable (Typeable)
 import Prelude as P
@@ -48,28 +50,31 @@ instance Elt a =>
 instance Elt a =>
          IsProduct Elt (Triple a) where
   type ProdRepr (Triple a) = ProdRepr (a, a, a)
+  fromProd :: proxy Elt -> Triple a -> ProdRepr (Triple a)
   fromProd cst (Triple x y z) = fromProd cst (x, y, z)
+  toProd :: proxy Elt -> ProdRepr (Triple a) -> Triple a
   toProd cst p =
     let (x, y, z) = toProd cst p
     in Triple x y z
+  prod :: proxy Elt -> Triple a -> ProdR Elt (ProdRepr (Triple a)) {- dummy -}
   prod cst _ = prod cst (undefined :: (Triple a))
 
 instance (Lift Exp a, Elt (Plain a)) =>
          Lift Exp (Triple a) where
   type Plain (Triple a) = Triple (Plain a)
-  lift (Triple x y z) =
-    Exp $ Tuple (v :: Tuple Exp (ProdRepr (Triple (Plain a))))
-      {-v = (NilTup) `SnocTup` (lift x `SnocTup` (lift y `SnocTup` (lift z)))-}
+  lift :: Triple a -> Exp (Triple (Plain a))
+  lift (Triple x y z) = Exp $ Tuple tuple
     where
-      v = NilTup `SnocTup` lift x `SnocTup` lift y `SnocTup` lift z
-      {-v = SnocTup NilTup (SnocTup (lift x) (SnocTup (lift y) (lift z)))-}
+      tuple :: Tuple Exp (ProdRepr (Triple (Plain a)))
+      tuple = NilTup `SnocTup` lift x `SnocTup` lift y `SnocTup` lift z
 
 instance Elt a =>
          Unlift Exp (Triple (Exp a)) where
+  unlift :: Exp (Plain (Triple (Exp a))) -> Triple (Exp a)
   unlift p =
-    let x = Exp $ SuccTupIdx ZeroTupIdx `Prj` p
-        y = Exp $ ZeroTupIdx `Prj` p
-        z = Exp $ ZeroTupIdx `Prj` p
+    let x = Exp $ SuccTupIdx (SuccTupIdx ZeroTupIdx) `Prj` p :: Exp a
+        y = Exp $ SuccTupIdx ZeroTupIdx `Prj` p :: Exp a
+        z = Exp $ ZeroTupIdx `Prj` p :: Exp a
     in Triple x y z
 
 instance Applicative Triple where

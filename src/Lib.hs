@@ -33,8 +33,6 @@ type Color' = Color Double
 blackCanvas :: Array D DIM2 Color'
 blackCanvas = R.fromFunction (Z :. Params.height :. Params.width) $ const black
 
-{-blackCanvas' :: Acc (Array DIM2 Color')-}
-{-blackCanvas' = fill (constant (Z :. Params.height :. Params.width)) black-}
 startingGens :: Array D DIM2 Random.StdGen
 startingGens = R.map Random.mkStdGen randomSeeds
   where
