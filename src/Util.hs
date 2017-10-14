@@ -15,11 +15,6 @@ import Control.Applicative
 import Control.Exception.Base (assert)
 import Data.Angle
        (Degrees(..), arctangent, arccosine, cosine, sine)
-import Data.Array.Accelerate (Lift(..), Plain)
-import Data.Array.Accelerate.Array.Sugar
-       (Elt(..), EltRepr, Tuple(..), TupleRepr)
-import Data.Array.Accelerate.Product (IsProduct(..))
-import Data.Array.Accelerate.Smart
 import Data.Array.Repa ((!))
 import qualified Data.Array.Repa as R
 import qualified Data.Array.Repa.Shape as S
@@ -37,8 +32,6 @@ import qualified System.Random as Random
 import Text.Read (readMaybe)
 import Triple (Vec3, Triple(..), normalize, norm2)
 
-type instance EltRepr Random.StdGen = EltRepr (Int, Int)
-
 readErrorMsg :: String -> String -> String
 readErrorMsg string typeString =
   "Failed to read string: \"" ++ string ++ "\" as " ++ typeString ++ "."
@@ -54,29 +47,6 @@ stdGenToTuple gen =
 unsafeStdGenToTuple :: Random.StdGen -> (Int, Int)
 unsafeStdGenToTuple gen =
   fromMaybe (error $ readErrorMsg (show gen) "[Int]") $ stdGenToTuple gen
-
-instance Elt Random.StdGen where
-  eltType _ = eltType (undefined :: (Int, Int))
-  toElt :: EltRepr (Int, Int) -> Random.StdGen
-  toElt p =
-    fromMaybe (error $ readErrorMsg string "Random.StdGen") (readMaybe string) :: Random.StdGen
-    where
-      (a, b) = toElt p :: (Int, Int)
-      string = show a ++ " " ++ show b
-  fromElt :: Random.StdGen -> EltRepr (Int, Int)
-  fromElt = fromElt . unsafeStdGenToTuple
-
-instance IsProduct Elt Random.StdGen where
-  type ProdRepr Random.StdGen = ProdRepr (Int, Int)
-  fromProd cst = fromProd cst . unsafeStdGenToTuple
-  toProd cst = toElt
-  prod cst _ = prod cst (undefined :: (Int, Int))
-
-instance Lift Exp Random.StdGen where
-  type Plain Random.StdGen = (Int, Int)
-  lift gen = Exp . Tuple $ NilTup `SnocTup` lift a `SnocTup` lift b
-    where
-      (a, b) = unsafeStdGenToTuple gen
 
 newtype Point =
   Point (Triple Double)

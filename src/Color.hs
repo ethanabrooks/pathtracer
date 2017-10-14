@@ -16,11 +16,6 @@ module Color
   , black
   ) where
 
-import Data.Array.Accelerate (Lift(..), Unlift(..), Plain(..))
-import Data.Array.Accelerate.Array.Sugar
-       (Elt(..), EltRepr, Tuple(..))
-import Data.Array.Accelerate.Product (IsProduct(..))
-import Data.Array.Accelerate.Smart (constant, Exp(..))
 import Data.Bits
 import Data.Range.Range (Range(..))
 import Data.Word (Word8, Word32)
@@ -35,27 +30,6 @@ instance Num a =>
          Bounded (Color a) where
   minBound = 0
   maxBound = 1
-
-type instance EltRepr (Color a) = EltRepr (Triple a)
-
-instance Elt a =>
-         Elt (Color a) where
-  eltType _ = eltType (undefined :: Triple a)
-  toElt :: EltRepr (a, a, a) -> Color a
-  toElt p = Color $ toElt p
-  fromElt :: Color a -> EltRepr (a, a, a)
-  fromElt (Color triple) = fromElt triple
-
-instance (Elt a, Lift Exp a, Elt (Plain a)) =>
-         Lift Exp (Color a) where
-  type Plain (Color a) = Plain (Triple a) -- = Triple (Plain a)
-  lift :: Color a -> Exp (Plain (Color a))
-  lift (Color triple) = lift triple
-
-instance (Elt a, Elt (Exp a)) =>
-         Unlift Exp (Color (Exp a)) where
-  unlift :: Exp (Plain (Triple (Exp a))) -> Color (Exp a)
-  unlift p = error ""
 
 newColor a b c = Color $ Triple a b c
 

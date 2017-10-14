@@ -19,13 +19,6 @@ module Triple
 import Control.Applicative
 import Test.QuickCheck (Arbitrary, arbitrary)
 
-import Data.Array.Accelerate
-       (Acc, Z(..), (:.)(..), Elt(..), Lift(..), Unlift(..), Plain)
-import Data.Array.Accelerate.Array.Sugar
-       (Elt(..), EltRepr, Tuple(..), TupleRepr)
-import Data.Array.Accelerate.Product
-       (TupleIdx(..), IsProduct(..), ProdR)
-import Data.Array.Accelerate.Smart
 import Data.Typeable (Typeable)
 import Prelude as P
 import qualified System.Random as Random
@@ -37,46 +30,6 @@ data Triple a =
   deriving (Show, P.Eq, Typeable, Functor, Foldable, Traversable)
 
 -- |Accelerate
-type instance EltRepr (Triple a) = EltRepr (a, a, a)
-
-instance Elt a =>
-         Elt (Triple a) where
-  eltType _ = eltType (undefined :: (a, a, a))
-  toElt p =
-    let (x, y, z) = toElt p
-    in Triple x y z
-  fromElt (Triple x y z) = fromElt (x, y, z)
-
-instance Elt a =>
-         IsProduct Elt (Triple a) where
-  type ProdRepr (Triple a) = ProdRepr (a, a, a)
-  fromProd :: proxy Elt -> Triple a -> ProdRepr (Triple a)
-  fromProd cst (Triple x y z) = fromProd cst (x, y, z)
-  toProd :: proxy Elt -> ProdRepr (Triple a) -> Triple a
-  toProd cst p =
-    let (x, y, z) = toProd cst p
-    in Triple x y z
-  prod :: proxy Elt -> Triple a -> ProdR Elt (ProdRepr (Triple a)) {- dummy -}
-  prod cst _ = prod cst (undefined :: (Triple a))
-
-instance (Lift Exp a, Elt (Plain a)) =>
-         Lift Exp (Triple a) where
-  type Plain (Triple a) = Triple (Plain a)
-  lift :: Triple a -> Exp (Triple (Plain a))
-  lift (Triple x y z) = Exp $ Tuple tuple
-    where
-      tuple :: Tuple Exp (ProdRepr (Triple (Plain a)))
-      tuple = NilTup `SnocTup` lift x `SnocTup` lift y `SnocTup` lift z
-
-instance Elt a =>
-         Unlift Exp (Triple (Exp a)) where
-  unlift :: Exp (Plain (Triple (Exp a))) -> Triple (Exp a)
-  unlift p =
-    let x = Exp $ SuccTupIdx (SuccTupIdx ZeroTupIdx) `Prj` p :: Exp a
-        y = Exp $ SuccTupIdx ZeroTupIdx `Prj` p :: Exp a
-        z = Exp $ ZeroTupIdx `Prj` p :: Exp a
-    in Triple x y z
-
 instance Applicative Triple where
   pure a = Triple a a a
   Triple f1 f2 f3 <*> Triple a1 a2 a3 = Triple (f1 a1) (f2 a2) (f3 a3)
