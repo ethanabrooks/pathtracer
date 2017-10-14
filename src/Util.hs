@@ -1,105 +1,148 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE Strict #-}
 
-module Util
-  ( black
-  , white
-  , flatten
-  , mapIndex
-  , toSphericalCoords
-  , fromSphericalCoords
-  , reshape
-  , expandDim
-  , aeq
-  , vecAeq
-  , rotateAbs
-  , rotateRel
-  , contains
-  , randomAngle
-  , randomRangeList
-  , fromTripleArray
-  , toTripleArray
-  ) where
+module Util where
 
+import qualified Codec.Picture as P
 import Control.Applicative
+import Control.Exception.Base (assert)
 import Data.Angle
        (Degrees(..), arctangent, arccosine, cosine, sine)
-import Data.Array.Repa ((:.)(..), Array, D, DIM2, DIM3, Z(..), (!))
+import Data.Array.Accelerate (Lift(..), Plain)
+import Data.Array.Accelerate.Array.Sugar
+       (Elt(..), EltRepr, Tuple(..), TupleRepr)
+import Data.Array.Accelerate.Product (IsProduct(..))
+import Data.Array.Accelerate.Smart
+import Data.Array.Repa ((!))
 import qualified Data.Array.Repa as R
 import qualified Data.Array.Repa.Shape as S
+import qualified Data.ByteString.Base64
+import qualified Data.ByteString.Lazy.Char8
 import Data.Fixed (mod')
+import Data.Foldable
+import Data.Maybe
+import Data.Range.Range (Range)
+import qualified Data.Text.Encoding
+import qualified Data.Text.Lazy as TL
+import Data.Typeable (Typeable)
+import qualified Params
 import qualified System.Random as Random
-import Triple
-       (Vec3, Triple(..), tripleToList, listToTriple, normalize, norm2,
-        tAnd)
+import Text.Read (readMaybe)
+import Triple (Vec3, Triple(..), normalize, norm2)
 
-instance Functor Degrees where
-  fmap f (Degrees x) = Degrees (f x)
+type instance EltRepr Random.StdGen = EltRepr (Int, Int)
 
-black = pure 0 :: Vec3
+readErrorMsg :: String -> String -> String
+readErrorMsg string typeString =
+  "Failed to read string: \"" ++ string ++ "\" as " ++ typeString ++ "."
 
-white = pure 1 :: Vec3
+stdGenToTuple :: Random.StdGen -> Maybe (Int, Int)
+stdGenToTuple gen =
+  case map readMaybe strings :: [Maybe Int] of
+    [Just a, Just b] -> Just (a, b)
+    _ -> Nothing
+  where
+    strings = words $ show gen :: [String]
+
+unsafeStdGenToTuple :: Random.StdGen -> (Int, Int)
+unsafeStdGenToTuple gen =
+  fromMaybe (error $ readErrorMsg (show gen) "[Int]") $ stdGenToTuple gen
+
+instance Elt Random.StdGen where
+  eltType _ = eltType (undefined :: (Int, Int))
+  toElt :: EltRepr (Int, Int) -> Random.StdGen
+  toElt p =
+    fromMaybe (error $ readErrorMsg string "Random.StdGen") (readMaybe string) :: Random.StdGen
+    where
+      (a, b) = toElt p :: (Int, Int)
+      string = show a ++ " " ++ show b
+  fromElt :: Random.StdGen -> EltRepr (Int, Int)
+  fromElt = fromElt . unsafeStdGenToTuple
+
+instance IsProduct Elt Random.StdGen where
+  type ProdRepr Random.StdGen = ProdRepr (Int, Int)
+  fromProd cst = fromProd cst . unsafeStdGenToTuple
+  toProd cst = toElt
+  prod cst _ = prod cst (undefined :: (Int, Int))
+
+instance Lift Exp Random.StdGen where
+  type Plain Random.StdGen = (Int, Int)
+  lift gen = Exp . Tuple $ NilTup `SnocTup` lift a `SnocTup` lift b
+    where
+      (a, b) = unsafeStdGenToTuple gen
+
+newtype Point =
+  Point (Triple Double)
+  deriving (Eq, Show)
+
+newtype Vector =
+  Vector Vec3
+  deriving (Eq, Show)
+
+newPoint a b c = Point $ Triple a b c
+
+newVector a b c = Vector $ Triple a b c
+
+fromTripleArray
+  :: R.Source r (Triple a)
+  => R.Array r R.DIM2 (Triple a) -> R.Array R.D R.DIM3 a
+fromTripleArray array =
+  R.fromFunction
+    (R.Z R.:. rows R.:. cols R.:. 3)
+    (\(R.Z R.:. i R.:. j R.:. k) ->
+       let Triple x y z = (array ! (R.Z R.:. i R.:. j))
+       in [x, y, z] !! k)
+  where
+    (R.Z R.:. rows R.:. cols) = R.extent array
+
+toTripleArray
+  :: R.Source r a
+  => R.Array r R.DIM3 a -> R.Array R.D R.DIM2 (Triple a)
+toTripleArray array =
+  R.fromFunction
+    (R.Z R.:. rows R.:. cols)
+    (\(R.Z R.:. i R.:. j) ->
+       let [x, y, z] = [array ! (R.Z R.:. i R.:. j R.:. k) | k <- [0 .. 2]]
+       in Triple x y z)
+  where
+    (R.Z R.:. rows R.:. cols R.:. _) = R.extent array
+
+mapIndex
+  :: (S.Shape sh', R.Source r a)
+  => (sh' -> b) -> R.Array r sh' a -> R.Array R.D sh' b
+mapIndex f array = R.traverse array id $ const f
 
 inferMissing
   :: (Show a, Integral a)
   => [a] -> [a] -> [a]
-inferMissing list listWithNeg
-  | not valid =
-    error
-      (show list ++ " and " ++ show listWithNeg ++ " are not valid inputs.")
-  | valid = result
+inferMissing list listWithNeg =
+  (assert =<< valid)
+    [ if x < 0
+      then missingValue
+      else x
+    | x <- listWithNeg
+    ]
   where
-    valid = (product result == product list) && all (> 0) result
-    missingVal = product list `quot` product (filter (>= 0) listWithNeg)
-    result =
-      map
-        (\x ->
-           if x < 0
-             then missingVal
-             else x)
-        listWithNeg
-
-fromTripleArray
-  :: R.Source r (Triple a)
-  => Array r DIM2 (Triple a) -> Array D DIM3 a
-fromTripleArray array =
-  R.fromFunction
-    (Z :. rows :. cols :. 3)
-    (\(Z :. i :. j :. k) -> tripleToList (array ! (Z :. i :. j)) !! k)
-  where
-    (Z :. rows :. cols) = R.extent array
-
-toTripleArray
-  :: R.Source r a
-  => Array r DIM3 a -> Array D DIM2 (Triple a)
-toTripleArray array =
-  R.fromFunction
-    (Z :. rows :. cols)
-    (\(Z :. i :. j) -> listToTriple [array ! (Z :. i :. j :. k) | k <- [0 .. 2]])
-  where
-    (Z :. rows :. cols :. _) = R.extent array
-
-mapIndex
-  :: (S.Shape sh', R.Source r a)
-  => (sh' -> b) -> Array r sh' a -> Array D sh' b
-mapIndex f array = R.traverse array id $ const f
+    valid result = (product result == product list) && all (> 0) result
+    missingValue = product list `quot` product (filter (>= 0) listWithNeg)
 
 reshape
   :: (R.Source r1 e, S.Shape sh1, S.Shape sh2)
-  => [Int] -> Array r1 sh1 e -> Array D sh2 e
+  => [Int] -> R.Array r1 sh1 e -> R.Array R.D sh2 e
 reshape shape array = R.reshape (S.shapeOfList shape') array
   where
     shape' = inferMissing (S.listOfShape (R.extent array)) shape
 
-flatten
-  :: (R.Source r1 e, S.Shape sh1, S.Shape sh2)
-  => Array r1 sh1 e -> Array D sh2 e
-flatten = reshape [-1]
-
 expandDim
   :: (R.Source r1 e, S.Shape sh1, S.Shape sh2)
-  => Int -> Array r1 sh1 e -> Array D sh2 e
+  => Int -> R.Array r1 sh1 e -> R.Array R.D sh2 e
 expandDim dim array = R.reshape shape array
   where
     shape = S.shapeOfList . insertAt dim 1 . S.listOfShape $ R.extent array
@@ -107,8 +150,11 @@ expandDim dim array = R.reshape shape array
 insertAt :: Int -> a -> [a] -> [a]
 insertAt n x list = take n list ++ [x] ++ drop n list
 
+instance Functor Degrees where
+  fmap f (Degrees x) = Degrees (f x)
+
 arctan2 :: Double -> Double -> Degrees Double
-arctan2 x y = (`mod'` 360) <$> arctan'
+arctan2 x y = (`mod'` 360.0) <$> arctan'
   where
     arctan = arctangent $ y / x
     arctan'
@@ -156,7 +202,7 @@ aeq tolerance a b = (a - b) * (a - b) < tolerance
 vecAeq
   :: (Ord a, Num a)
   => a -> Triple a -> Triple a -> Bool
-vecAeq tolerance a b = tAnd $ liftA2 (aeq tolerance) a b
+vecAeq tolerance a b = and $ liftA2 (aeq tolerance) a b
 
 contains
   :: Ord t
@@ -189,3 +235,50 @@ randomRangeList firstGen ranges = (reverse randoms, lastGen)
            in (x : xs, gen'))
         ([], firstGen)
         ranges
+
+listToPixelRGB8 :: [Double] -> P.PixelRGB8
+listToPixelRGB8 list = P.PixelRGB8 r g b
+  where
+    [r, g, b] = round . (255 *) <$> list
+
+repa3ToImage
+  :: (R.Source r Double)
+  => R.Array r R.DIM3 Double -> P.Image P.PixelRGB8
+repa3ToImage canvas = P.generateImage fromCoords Params.height Params.width
+  where
+    fromCoords i j =
+      listToPixelRGB8 [canvas ! (R.Z R.:. i R.:. j R.:. k) | k <- [0 .. 2]]
+
+repa2ToImage
+  :: (R.Source r Vec3)
+  => R.Array r R.DIM2 Vec3 -> P.Image P.PixelRGB8
+repa2ToImage canvas = P.generateImage fromCoords Params.height Params.width
+  where
+    fromCoords i j =
+      let Triple x y z = canvas ! (R.Z R.:. i R.:. j)
+      in listToPixelRGB8 [x, y, z]
+
+imageToText :: P.Image P.PixelRGB8 -> TL.Text
+imageToText =
+  TL.fromStrict .
+  Data.Text.Encoding.decodeUtf8 .
+  Data.ByteString.Base64.encode .
+  Data.ByteString.Lazy.Char8.toStrict . P.encodePng
+
+repa2ToText
+  :: (R.Source r Vec3)
+  => R.Array r R.DIM2 Vec3 -> TL.Text
+repa2ToText = imageToText . repa2ToImage
+
+repa1ToText
+  :: (R.Source r Vec3)
+  => R.Array r R.DIM1 Vec3 -> TL.Text
+repa1ToText = imageToText . repa2ToImage . reshape [Params.height, Params.width]
+
+repa3ToText :: R.Array R.U R.DIM3 Double -> TL.Text
+repa3ToText = imageToText . repa3ToImage
+
+clamp
+  :: Ord a
+  => a -> a -> a -> a
+clamp lower upper = max lower . min upper

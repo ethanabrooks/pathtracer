@@ -1,51 +1,16 @@
 {-# LANGUAGE Strict #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
-module Object
-  ( Object(..)
-  , Form(..)
-  , Ray(..)
-  , Point(..)
-  , Vector(..)
-  , Color(..)
-  , distanceFrom
-  , distanceFrom'
-  , march
-  , getNormal
-  , getVector
-  , getColor
-  , objects
-  ) where
+module Object where
 
-import Control.Monad
-import qualified Data.Vector as V
-import qualified System.Random as Random
-import Triple (Triple(..), Vec3, norm2, dot, normalize)
-
-newtype Color =
-  Color Vec3
-  deriving (Eq)
-
-newColor a b c = Color $ Triple a b c
-
-data Object = Object
-  { _color :: Color
-  , _emittance :: Double
-  , _reflective :: Bool
-  , _form :: Form
-  , _name :: String
-  }
-
-instance Eq Object where
-  Object c1 e1 r1 f1 n1 == Object c2 e2 r2 f2 n2 =
-    c1 == c2 && e1 == e2 && r1 == r2 && f1 == f2 && n1 == n2
-
-newtype Point =
-  Point (Triple Double)
-  deriving (Eq)
-
-newtype Vector =
-  Vector Vec3
-  deriving (Eq)
+import Color (Color, colorToTriple)
+import Triple (Triple, Vec3)
+import Util (Point(..), Vector(..))
 
 data Form
   = Disk { _center :: Point
@@ -58,91 +23,27 @@ data Form
           --   , _normal :: Vec3
           --   , _height :: Double
           --   , _width  :: Double }
+  deriving (Eq)
 
+{-
 instance Eq Form where
   Disk c1 n1 r1 == Disk c2 n2 r2 = c1 == c2 && n1 == n2 && r1 == r2
   InfinitePlane p1 n1 == InfinitePlane p2 n2 = p1 == p2 && n1 == n2
   _ == _ = False
+  -}
+data Object = Object
+  { _color :: Color Double
+  , _emittance :: Double
+  , _reflective :: Bool
+  , _form :: Form
+  , _name :: String
+  } deriving (Eq)
 
-newPoint a b c = Point (Triple a b c)
-
-newVector a b c = Vector (Triple a b c)
-
-data Ray = Ray
-  { _origin :: Point
-  , _vector :: Vector
-  , _gen :: Random.StdGen
-  , _lastStruck :: Maybe Object
-  }
-
-infLight =
-  Object
-  { _color = Color $ pure 1
-  , _name = "infinite light"
-  , _emittance = 5
-  , _reflective = True
-  , _form =
-      InfinitePlane
-      {_point = Point $ Triple 0 0 (-10), _normal = Vector $ Triple 0 0 (-1)}
-  }
-
-disk =
-  Object
-  { _color = Color $ Triple 0 1 0
-  , _name = "disk"
-  , _emittance = 0
-  , _reflective = False
-  , _form =
-      Disk
-      {_center = newPoint 0 0 10, _normal = newVector 1 0 (-1), _radius = 600}
-  }
-
-light =
-  Object
-  { _color = Color $ pure 1
-  , _name = "light"
-  , _emittance = 2
-  , _reflective = True
-  , _form =
-      Disk
-      {_center = newPoint 0 0 (-1), _normal = newVector 0 0 1, _radius = 20}
-  }
-
-infPlane =
-  Object
-  { _color = Color . pure $ 1
-  , _name = "plane 1"
-  , _emittance = 0
-  , _reflective = False
-  , _form =
-      InfinitePlane
-      {_point = newPoint 20 (-20) 100, _normal = newVector 0 0 (-1)}
-  }
-
-infPlane2 =
-  Object
-  { _color = newColor 0.1 1 1
-  , _name = "plane 2"
-  , _emittance = 0
-  , _reflective = False
-  , _form =
-      InfinitePlane {_point = newPoint 20 (-20) 100, _normal = newVector 0 1 0}
-  }
-
-infPlane3 =
-  Object
-  { _color = newColor 1 1 0.1
-  , _name = "plane 3"
-  , _emittance = 0
-  , _reflective = False
-  , _form =
-      InfinitePlane
-      {_point = newPoint 20 (-20) 100, _normal = newVector (-1) 0 0}
-  }
-
-objects :: V.Vector Object
-objects = V.fromList [infPlane, light]
-
+{-
+instance Eq Object where
+  Object c1 e1 r1 f1 n1 == Object c2 e2 r2 f2 n2 =
+    c1 == c2 && e1 == e2 && r1 == r2 && f1 == f2 && n1 == n2
+    -}
 ---
 march :: Ray -> Double -> Vec3
 march (Ray (Point origin) (Vector vector) _ _) distance =
@@ -178,13 +79,16 @@ getNormal form = normal
   where
     Vector normal = _normal form
 
-getColor :: Object -> Triple Double
-getColor Object {_color = Color color} = color
-
-getVector :: Ray -> Triple Double
-getVector Ray {_vector = Vector vector} = vector
----
+getColor :: Object -> Color Double
+getColor Object {_color = color} = color
  {-
 TODO:
 add spheres
 -}
+---
+{-
+instance Elt Ray where 
+  eltType _ = eltType  (undefined :: (Vec3, Vec3, Int, Maybe Int)
+  toElt p = let (point, vector, seed, lastStruck) = toElt p
+             in Ray point vector seed 
+             -}

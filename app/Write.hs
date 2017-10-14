@@ -4,9 +4,9 @@ module Main
 
 import qualified Codec.Picture as P
 
-import Conversion (repa3ToImage)
 import Lib (traces)
 import qualified Params
+import Util (repa3ToImage)
 
 main :: IO ()
 main = do

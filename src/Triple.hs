@@ -1,4 +1,11 @@
 {-# LANGUAGE Strict #-}
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
 module Triple
   ( Triple(..)
@@ -7,83 +14,72 @@ module Triple
   , cross
   , norm2
   , normalize
-  , tupleToTriple
-  , tripleToTuple
-  , tripleToList
-  , listToTriple
-  , tSum
-  , tAnd
   ) where
 
 import Control.Applicative
 import Test.QuickCheck (Arbitrary, arbitrary)
 
+import Data.Array.Accelerate
+       (Acc, Z(..), (:.)(..), Elt(..), Lift(..), Unlift(..), Plain)
+import Data.Array.Accelerate.Array.Sugar
+       (Elt(..), EltRepr, Tuple(..), TupleRepr)
+import Data.Array.Accelerate.Product
+       (TupleIdx(..), IsProduct(..), ProdR)
+import Data.Array.Accelerate.Smart
+import Data.Typeable (Typeable)
+import Prelude as P
+import qualified System.Random as Random
+
 data Triple a =
   Triple a
          a
          a
+  deriving (Show, P.Eq, Typeable, Functor, Foldable, Traversable)
 
-type Vec3 = Triple Double
+-- |Accelerate
+type instance EltRepr (Triple a) = EltRepr (a, a, a)
 
-tupleToTriple :: (t, t, t) -> Triple t
-tupleToTriple (x, y, z) = Triple x y z
+instance Elt a =>
+         Elt (Triple a) where
+  eltType _ = eltType (undefined :: (a, a, a))
+  toElt p =
+    let (x, y, z) = toElt p
+    in Triple x y z
+  fromElt (Triple x y z) = fromElt (x, y, z)
 
-tripleToTuple :: Triple t -> (t, t, t)
-tripleToTuple (Triple x y z) = (x, y, z)
+instance Elt a =>
+         IsProduct Elt (Triple a) where
+  type ProdRepr (Triple a) = ProdRepr (a, a, a)
+  fromProd :: proxy Elt -> Triple a -> ProdRepr (Triple a)
+  fromProd cst (Triple x y z) = fromProd cst (x, y, z)
+  toProd :: proxy Elt -> ProdRepr (Triple a) -> Triple a
+  toProd cst p =
+    let (x, y, z) = toProd cst p
+    in Triple x y z
+  prod :: proxy Elt -> Triple a -> ProdR Elt (ProdRepr (Triple a)) {- dummy -}
+  prod cst _ = prod cst (undefined :: (Triple a))
 
-tripleToList :: Triple t -> [t]
-tripleToList (Triple a1 a2 a3) = [a1, a2, a3]
+instance (Lift Exp a, Elt (Plain a)) =>
+         Lift Exp (Triple a) where
+  type Plain (Triple a) = Triple (Plain a)
+  lift :: Triple a -> Exp (Triple (Plain a))
+  lift (Triple x y z) = Exp $ Tuple tuple
+    where
+      tuple :: Tuple Exp (ProdRepr (Triple (Plain a)))
+      tuple = NilTup `SnocTup` lift x `SnocTup` lift y `SnocTup` lift z
 
-listToTriple :: [t] -> Triple t
-listToTriple [a1, a2, a3] = Triple a1 a2 a3
-listToTriple _ = error "Not a valid type to convert to Triple."
-
-tSum
-  :: Num a
-  => Triple a -> a
-tSum = sum . tripleToList
-
-tAnd :: Triple Bool -> Bool
-tAnd = and . tripleToList
-
-dot
-  :: Num a
-  => Triple a -> Triple a -> a
-dot a b = tSum $ a * b
-
-cross
-  :: Num a
-  => Triple a -> Triple a -> Triple a
-cross (Triple x1 y1 z1) (Triple x2 y2 z2) = Triple x y z
-  where
-    x = y1 * z2 - z1 * y2
-    y = z1 * x2 - x1 * z2
-    z = x1 * y2 - y1 * x2
-
-norm2
-  :: Floating a
-  => Triple a -> a
-norm2 (Triple x y z) = sqrt $ x ^ 2 + y ^ 2 + z ^ 2
-
-normalize :: Vec3 -> Vec3
-normalize vector = (/ norm) <$> vector
-  where
-    norm = max (10 ** (-6)) $ norm2 vector
-
-instance Show a =>
-         Show (Triple a) where
-  show = show . tripleToTuple
-
-instance Functor Triple where
-  fmap f (Triple a1 a2 a3) = Triple (f a1) (f a2) (f a3)
+instance Elt a =>
+         Unlift Exp (Triple (Exp a)) where
+  unlift :: Exp (Plain (Triple (Exp a))) -> Triple (Exp a)
+  unlift p =
+    let x = Exp $ SuccTupIdx (SuccTupIdx ZeroTupIdx) `Prj` p :: Exp a
+        y = Exp $ SuccTupIdx ZeroTupIdx `Prj` p :: Exp a
+        z = Exp $ ZeroTupIdx `Prj` p :: Exp a
+    in Triple x y z
 
 instance Applicative Triple where
   pure a = Triple a a a
   Triple f1 f2 f3 <*> Triple a1 a2 a3 = Triple (f1 a1) (f2 a2) (f3 a3)
-
-instance Eq a =>
-         Eq (Triple a) where
-  t1 == t2 = tAnd $ liftA2 (==) t1 t2
 
 instance Num a =>
          Num (Triple a) where
@@ -106,3 +102,29 @@ instance Arbitrary a =>
     a2 <- arbitrary
     a3 <- arbitrary
     return $ Triple a1 a2 a3
+
+type Vec3 = Triple Double
+
+dot
+  :: Num a
+  => Triple a -> Triple a -> a
+dot a b = sum $ a * b
+
+cross
+  :: Num a
+  => Triple a -> Triple a -> Triple a
+cross (Triple x1 y1 z1) (Triple x2 y2 z2) = Triple x y z
+  where
+    x = y1 * z2 - z1 * y2
+    y = z1 * x2 - x1 * z2
+    z = x1 * y2 - y1 * x2
+
+norm2
+  :: Floating a
+  => Triple a -> a
+norm2 = sqrt . sum . fmap (^ 2)
+
+normalize :: Vec3 -> Vec3
+normalize vector = (/ norm) <$> vector
+  where
+    norm = max (10 ** (-6)) $ norm2 vector

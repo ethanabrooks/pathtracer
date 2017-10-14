@@ -1,16 +1,20 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell #-} -- needed for QuickCheck
 
+import Color (colorToWord32, tripleToColor)
 import Data.Angle
+import Data.Maybe
 import Debug.Trace
 import Lib
-import Object
-       (Point(..), Vector(..), Ray(..), march, distanceFrom', Form(..))
+import Object (Form(..))
 import qualified Params
+import Ray (Ray(..), march, distanceFrom')
 import qualified System.Random as Random
 import Test.QuickCheck (quickCheck, quickCheckAll, (==>))
 import qualified Test.QuickCheck as T
 import Triple
 import Util
+
+{-# ANN module "HLint: ignore Unused LANGUAGE pragma" #-}
 
 tolerance :: Double
 tolerance = 1e-7
@@ -38,7 +42,7 @@ propNormalize1 :: Vec3 -> T.Property
 propNormalize1 vec =
   not (norm2 vec ~= 0) ==> norm2 (normalize vec) ~= 1 && x ~= y && y ~= z
   where
-    Triple x y z = vec / (normalize vec)
+    Triple x y z = vec / normalize vec
 
 propNormalize2 :: Bool
 propNormalize2 = norm2 (normalize $ Triple 0 0 0) == 0
@@ -55,11 +59,11 @@ sphericalRelations
 sphericalRelations x y z x' y' theta phi =
   x' ~= cosine phi && y' ~= sine phi && (y / x) ~= tangent phi &&
   ((x ** 2) + (y ** 2)) ~=
-  ((sine theta) ** 2) &&
+  (sine theta ** 2) &&
   z ~=
   cosine theta &&
   (((x ** 2) + (y ** 2)) / (z ** 2)) ~=
-  ((tangent theta) ** 2)
+  (tangent theta ** 2)
 
 propToSpherical1 :: Vec3 -> T.Property
 propToSpherical1 vec3 =
@@ -99,7 +103,7 @@ propSpherical1 theta phi =
       toSphericalCoords $ fromSphericalCoords (Degrees theta) (Degrees phi)
 
 propSpherical2 :: Vec3 -> T.Property
-propSpherical2 vec = not (norm2 vec ~= 0) ==> (normalize vec) ^~= vec'
+propSpherical2 vec = not (norm2 vec ~= 0) ==> normalize vec ^~= vec'
   where
     (theta, phi) = toSphericalCoords vec
     vec' = fromSphericalCoords theta phi
@@ -107,8 +111,8 @@ propSpherical2 vec = not (norm2 vec ~= 0) ==> (normalize vec) ^~= vec'
 propRotateAbs1 :: Double -> Double -> T.Property
 propRotateAbs1 theta phi =
   (0, True, 180, True) `contains` theta && (0, True, 360, True) `contains` phi ==>
-  (rotateAbs (Triple 0 0 1) theta' phi') ^~=
-  (fromSphericalCoords theta' phi')
+  rotateAbs (Triple 0 0 1) theta' phi' ^~=
+  fromSphericalCoords theta' phi'
   where
     [theta', phi'] = map Degrees [theta, phi]
 
@@ -147,8 +151,8 @@ propSpecular vector normal =
   -- angle of incidence equals angle of reflection
   (normalize (-vector) `dot` normalize normal) ~=
   (normalize vector' `dot` normalize normal) &&
-  (projOntoSurface vector) ^~=
-  (projOntoSurface vector')
+  projOntoSurface vector ^~=
+  projOntoSurface vector'
   where
     (vector', _) = specular (Random.mkStdGen 0) 0 vector normal
     normal' = normalize normal
@@ -169,10 +173,10 @@ propDistanceFrom' origin vector normal point =
   normal ~=
   0
   where
-    intersection = march ray distance
     ray = defaultRay {_origin = Point origin, _vector = Vector vector}
     Just distance =
       distanceFrom' ray $ InfinitePlane (Point point) (Vector normal)
+    intersection = march ray distance
 
 propRandomRangeList :: Float -> Float -> Float -> Float -> Int -> T.Property
 propRandomRangeList l1 h1 l2 h2 seed =
@@ -182,6 +186,20 @@ propRandomRangeList l1 h1 l2 h2 seed =
     gen = Random.mkStdGen seed
     (o1, gen') = Random.randomR (l1, h1) gen :: (Float, Random.StdGen)
     (o2, gen'') = Random.randomR (l2, h2) gen' :: (Float, Random.StdGen)
+
+propStdGenToTuple :: Int -> Bool
+propStdGenToTuple seed = isJust . stdGenToTuple $ Random.mkStdGen seed
+
+propColorToWord32 :: Bool
+propColorToWord32 =
+  and
+    [ colorToWord32 (tripleToColor triple) == word32
+    | (triple, word32) <-
+        [ (Triple 1 1 1, 0xFFFFFF)
+        , (Triple 0 0 0, 0x000000)
+        , (Triple 0 1 0, 0x00FF00)
+        ]
+    ]
 
 main = do
   putStrLn "propCross1"
@@ -216,8 +234,12 @@ main = do
   quickCheck propFromSpherical2
   putStrLn "propSpecular"
   quickCheck propSpecular
+  putStrLn "propStdGenToTuple"
+  quickCheck propStdGenToTuple
   -- one offs
   putStrLn "propNorm2"
   quickCheck propNorm2
   putStrLn "propNormalize2"
   quickCheck propNormalize2
+  putStrLn "propColorToWord32"
+  quickCheck propColorToWord32

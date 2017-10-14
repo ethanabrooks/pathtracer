@@ -4,11 +4,12 @@
 
 module Lib
   ( traces
-  , specular
+  , specular -- for testing
   , traceSource
   ) where
 
 import qualified Codec.Picture as P
+import Color (white, black, colorToTriple, Color)
 import Control.Monad
 import Data.Angle (Degrees(..), arccosine)
 import Data.Array.Repa ((:.)(..), Array, D, DIM3, DIM2, U, Z(..))
@@ -16,17 +17,20 @@ import qualified Data.Array.Repa as R
 import Data.Conduit (($$), (=$=), Source, Producer, Conduit)
 import qualified Data.Conduit.List
 import qualified Data.Vector as V
-import Debug.Trace
-import Object
-       (Object(..), Ray(..), Point(..), Vector(..), getColor, getNormal,
-        distanceFrom, objects, march, getVector)
+import Object (Object(..), getColor, getNormal)
+import Objects (objects)
 import qualified Params
+import Ray (Ray(..), distanceFrom, march, getVector)
+import State (State(..), getPixel)
 import qualified System.Random as Random
 import Triple (Triple(..), Vec3, normalize, dot)
 import Util
-       (white, black, rotateRel, randomRangeList, fromTripleArray)
+       (rotateRel, randomRangeList, fromTripleArray, Point(..),
+        Vector(..))
 
-blackCanvas :: Array D DIM2 Vec3
+type Color' = Color Double
+
+blackCanvas :: Array D DIM2 Color'
 blackCanvas = R.fromFunction (Z :. Params.height :. Params.width) $ const black
 
 startingGens :: Array D DIM2 Random.StdGen
@@ -56,40 +60,41 @@ traceSource =
   Data.Conduit.List.iterate traceCanvas startValues =$=
   Data.Conduit.List.mapM computeArray3
   where
-    startValues = R.zipWith (,) blackCanvas startingGens
-    computeArray3 = R.computeP . fromTripleArray . R.map fst
+    startValues = R.zipWith State blackCanvas startingGens
+    computeArray3 =
+      R.computeP . fromTripleArray . R.map (colorToTriple . getPixel)
 
 traces
   :: Monad m
   => [m (Array U DIM3 Double)]
 traces =
-  map (R.computeP . fromTripleArray . R.map fst) . iterate traceCanvas $
-  R.zipWith (,) blackCanvas startingGens
+  map (R.computeP . fromTripleArray . R.map (colorToTriple . getPixel)) .
+  iterate traceCanvas $
+  R.zipWith State blackCanvas startingGens
 
-traceCanvas
-  :: R.Source r (Vec3, Random.StdGen)
-  => Array r DIM2 (Vec3, Random.StdGen) -> Array D DIM2 (Vec3, Random.StdGen)
+traceCanvas :: Array D DIM2 State -> Array D DIM2 State
 traceCanvas array =
   R.traverse array id $ \lookup sh ->
-    let (color, gen) = lookup sh
+    let State color gen = lookup sh
         (color', gen') =
-          traceRay Params.maxBounces white $ rayFromCamToPixel gen sh
-    in (color + color', gen')
+          traceRay Params.maxBounces white (rayFromCamToPixel gen sh)
+    in State (color + color') gen'
 
-traceRay :: Int -> Vec3 -> Ray -> (Vec3, Random.StdGen)
+traceRay :: Int -> Color' -> Ray -> (Color', Random.StdGen)
 traceRay 0 _ ray = (black, _gen ray) -- ran out of bounces
 traceRay bouncesLeft pixel ray = interactWith $ closestObjectTo ray
   where
-    interactWith :: Maybe (Object, Double) -> (Vec3, Random.StdGen)
-    interactWith Nothing = (black, _gen ray) -- pixel
+    gen' = _gen ray
+    interactWith :: Maybe (Object, Double) -> (Color', Random.StdGen)
+    interactWith Nothing = (black, gen') -- pixel
     interactWith (Just (object, distance))
-      | hitLight = ((_emittance object *) <$> pixel, _gen ray)
+      | hitLight = ((_emittance object *) <$> pixel, gen')
       | otherwise = traceRay (bouncesLeft - 1) pixel' ray'
       where
         hitLight = _emittance object > 0 :: Bool
         ray' = bounceRay ray object distance :: Ray
         brdf = getVector ray' `dot` getNormal (_form object)
-        pixel' = pure brdf * pixel * getColor object :: Vec3
+        pixel' = pure brdf * pixel * getColor object :: Color'
 
 closestObjectTo :: Ray -> Maybe (Object, Double)
 closestObjectTo ray = do
